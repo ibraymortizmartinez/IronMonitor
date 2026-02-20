@@ -2,12 +2,12 @@ const API_URL = 'https://698a1871c04d974bc6a1579f.mockapi.io/api/v1';
 const DEVICES_URL = `${API_URL}/logs`; 
 
 let devicesCache = [];
-let myChart;
+let charts = {}; // Diccionario para guardar las gráficas individuales
+const MAX_DATAPOINTS = 15; // Límite de puntos en el tiempo a mostrar
 let useLocalMode = false;
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
-    initChart();
     fetchDevices();
     // Ciclo principal de actualización cada 2 segundos
     setInterval(mainLoop, 2000); 
@@ -17,7 +17,7 @@ async function mainLoop() {
     if(useLocalMode) {
         simulatePhysicsLocal(); 
         renderControl(devicesCache);
-        updateChart(devicesCache);
+        updateCharts(devicesCache); // Llama a la nueva función de gráficas
     } else {
         await simulatePhysicsAndSave();
         await fetchDevices();
@@ -55,7 +55,7 @@ async function fetchDevices() {
     }
     renderControl(devicesCache);
     renderAdmin(devicesCache);
-    updateChart(devicesCache);
+    updateCharts(devicesCache); // Llama a la nueva función de gráficas
 }
 
 // --- RENDERS ---
@@ -117,9 +117,96 @@ async function renderHistoryTable() {
 
 function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
+    if(!tbody) return;
     tbody.innerHTML = '';
     mixers.forEach(m => {
         tbody.innerHTML += `<tr><td>${m.name}</td><td>${m.threshold}°C</td><td><button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">✕</button></td></tr>`;
+    });
+}
+
+// --- LÓGICA DINÁMICA DE GRÁFICAS ---
+function updateCharts(mixers) {
+    const container = document.getElementById('chartsContainer');
+    if(!container) return;
+
+    // Obtener la hora actual para el eje X
+    const currentTime = new Date().toLocaleTimeString('es-ES', { hour12: false });
+    const currentIds = mixers.map(m => m.id.toString());
+
+    mixers.forEach(m => {
+        const strId = m.id.toString();
+        let chartDiv = document.getElementById(`chart-wrapper-${strId}`);
+        
+        // Si la batidora no tiene su gráfica aún, la creamos
+        if (!chartDiv) {
+            chartDiv = document.createElement('div');
+            chartDiv.className = 'col-md-6 mb-3'; // Dos gráficas por fila en PC
+            chartDiv.id = `chart-wrapper-${strId}`;
+            chartDiv.innerHTML = `
+                <div class="p-3 border border-secondary rounded" style="background-color: #1a1a25;">
+                    <h6 class="text-center" style="color: var(--neon-blue); font-family: 'Orbitron', sans-serif;">${m.name}</h6>
+                    <canvas id="canvas-${strId}" height="150"></canvas>
+                </div>
+            `;
+            container.appendChild(chartDiv);
+
+            const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
+            charts[strId] = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: 'Temp (°C)', 
+                        data: [], 
+                        borderColor: '#00d4ff', 
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        fill: true, 
+                        tension: 0.4,
+                        pointRadius: 2
+                    }] 
+                },
+                options: { 
+                    responsive: true,
+                    animation: false, // Apagado para evitar parpadeos en cada ciclo
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { grid: { color: '#333' }, suggestedMin: 15, suggestedMax: parseInt(m.threshold) + 10 },
+                        x: { grid: { color: '#333' }, ticks: { color: '#888', font: {size: 10} } }
+                    } 
+                }
+            });
+        }
+
+        // Actualizamos los datos de la gráfica de esta batidora
+        const chart = charts[strId];
+        const dataset = chart.data.datasets[0];
+        
+        // Cambiar color si está en peligro o apagada
+        const isDanger = m.sensorValue >= m.threshold;
+        dataset.borderColor = isDanger ? '#ff2a2a' : (m.status ? '#00ff9d' : '#00d4ff');
+        dataset.backgroundColor = isDanger ? 'rgba(255, 42, 42, 0.1)' : (m.status ? 'rgba(0, 255, 157, 0.1)' : 'rgba(0, 212, 255, 0.1)');
+
+        // Agregar el nuevo dato en el tiempo
+        chart.data.labels.push(currentTime);
+        dataset.data.push(m.sensorValue);
+
+        // Mantener solo los últimos X puntos en el histórico de la gráfica
+        if (chart.data.labels.length > MAX_DATAPOINTS) {
+            chart.data.labels.shift();
+            dataset.data.shift();
+        }
+
+        chart.update();
+    });
+
+    // Limpieza: Eliminar gráficas de dispositivos que fueron borrados en el Admin
+    Object.keys(charts).forEach(id => {
+        if (!currentIds.includes(id)) {
+            charts[id].destroy(); 
+            delete charts[id];
+            const wrapper = document.getElementById(`chart-wrapper-${id}`);
+            if (wrapper) wrapper.remove();
+        }
     });
 }
 
@@ -170,24 +257,9 @@ async function toggleMixer(id, current) {
 // --- UTILIDADES ---
 function updateStatus(text, type) {
     const badge = document.getElementById('connectionStatus');
+    if(!badge) return;
     badge.innerText = text;
     badge.className = `badge rounded-pill bg-${type} bg-opacity-25 text-${type} border border-${type}`;
-}
-
-function initChart() {
-    const ctx = document.getElementById('tempChart').getContext('2d');
-    myChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Temp', data: [], borderColor: '#00d4ff', fill: true, tension: 0.4 }] },
-        options: { scales: { y: { grid: { color: '#333' } } }, animation: false }
-    });
-}
-
-function updateChart(mixers) {
-    if(!myChart) return;
-    myChart.data.labels = mixers.map(m => m.name);
-    myChart.data.datasets[0].data = mixers.map(m => m.sensorValue);
-    myChart.update();
 }
 
 function getLocalData() {
@@ -218,7 +290,7 @@ document.getElementById('addMixerForm').addEventListener('submit', async (e) => 
 });
 
 async function deleteDev(id) {
-    if(confirm("¿Eliminar?")) {
+    if(confirm("¿Eliminar dispositivo?")) {
         await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' });
         fetchDevices();
     }
