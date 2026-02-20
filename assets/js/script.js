@@ -309,3 +309,73 @@ async function deleteDev(id) {
         fetchDevices();
     }
 }
+function renderAdmin(mixers) {
+    const tbody = document.getElementById('adminTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    
+    filteredMixers.forEach(m => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${m.name}</td>
+            <td>${m.threshold}°C</td>
+            <td>
+                <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info me-2">Editar</button>
+                <button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">✕</button>
+            </td>
+        </tr>`;
+    });
+}
+
+// --- LÓGICA DE EDICIÓN (MODAL) ---
+function openEditModal(id) {
+    // Buscar los datos actuales del dispositivo
+    const mixer = devicesCache.find(m => m.id === id);
+    if (mixer) {
+        // Llenar los campos del formulario modal
+        document.getElementById('editId').value = mixer.id;
+        document.getElementById('editName').value = mixer.name;
+        document.getElementById('editThreshold').value = mixer.threshold;
+        
+        // Mostrar el modal usando Bootstrap JS
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        editModal.show();
+    }
+}
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = document.getElementById('editId').value;
+    const newName = document.getElementById('editName').value;
+    const newThreshold = document.getElementById('editThreshold').value;
+
+    if (!useLocalMode) {
+        // Enviar la actualización a MockAPI
+        try {
+            await fetch(`${DEVICES_URL}/${id}`, { 
+                method: 'PUT', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ deviceId: newName, threshold: newThreshold }) 
+            });
+        } catch(error) {
+            console.error("Error al actualizar", error);
+        }
+    } else {
+        // Actualizar localmente si no hay conexión
+        const mixer = devicesCache.find(m => m.id === id);
+        if (mixer) {
+            mixer.name = newName;
+            mixer.threshold = newThreshold;
+        }
+    }
+
+    // Ocultar el modal
+    const modalEl = document.getElementById('editModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    modalInstance.hide();
+
+    // Refrescar los datos en pantalla
+    fetchDevices();
+});
