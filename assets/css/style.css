@@ -1,0 +1,107 @@
+/* --- VARIABLES Y COLORES CYBERPUNK --- */
+:root {
+    --bg-dark: #121212;
+    --card-bg: #1e1e2d;
+    --neon-blue: #00d4ff;
+    --neon-green: #00ff9d;
+    --neon-red: #ff2a2a;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #e0e0e0;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* --- NAVBAR --- */
+.navbar {
+    background-color: #1a1a25 !important;
+    border-bottom: 1px solid #333;
+}
+
+.brand-tech {
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 2px;
+    color: var(--neon-blue);
+}
+
+/* --- CARDS --- */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid #333;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: transform 0.3s, border-color 0.3s;
+}
+
+.card:hover { 
+    transform: translateY(-5px); 
+}
+
+.border-on { 
+    border-color: var(--neon-green) !important; 
+    box-shadow: 0 0 15px rgba(0, 255, 157, 0.2); 
+}
+
+.border-off { 
+    border-color: #444 !important; 
+}
+
+.border-danger { 
+    border-color: var(--neon-red) !important; 
+    box-shadow: 0 0 15px rgba(255, 42, 42, 0.3); 
+}
+
+/* --- ELEMENTOS DE CONTROL --- */
+.mixer-icon { 
+    font-size: 3.5rem; 
+    transition: 0.3s; 
+}
+
+.temp-display { 
+    font-family: 'Orbitron', sans-serif; 
+    font-size: 2rem; 
+    font-weight: bold; 
+}
+
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+.vibrating { 
+    animation: shake 0.4s infinite; 
+    color: var(--neon-green); 
+}
+
+/* --- FORMULARIOS Y TABLAS --- */
+.nav-pills .nav-link { color: #888; }
+.nav-pills .nav-link.active { 
+    background-color: var(--neon-blue); 
+    color: #000; 
+    font-weight: bold; 
+}
+
+.form-control { 
+    background-color: #2a2a35; 
+    border: 1px solid #444; 
+    color: white; 
+}
+
+.form-control:focus { 
+    background-color: #333; 
+    color: white; 
+    border-color: var(--neon-blue); 
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3); 
+}
+
+.table-dark-custom { 
+    color: #ccc; 
+    font-size: 0.9rem; 
+}
+
+.table-dark-custom td, .table-dark-custom th { 
+    border-color: #333; 
+    padding: 12px; 
+}
