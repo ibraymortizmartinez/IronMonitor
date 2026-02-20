@@ -16,7 +16,8 @@
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
         <a class="navbar-brand brand-tech" href="#">
-            ⚡ Iron<span style="color:white">Monitor</span>
+            <img src="assets/img/favIcon.png" alt="Logo" style="width: 24px; margin-right: 5px; vertical-align: middle;">
+            Iron<span style="color:white">Monitor</span>
         </a>
         <span id="connectionStatus" class="badge rounded-pill bg-dark border border-secondary text-secondary">
             Conectando...
@@ -27,17 +28,31 @@
 <div class="container mt-4">
     
     <div class="row justify-content-center mb-4">
-        <div class="col-md-8">
+        <div class="col-md-8 position-relative">
+            <img src="assets/img/buscar.png" alt="Buscar" 
+                 style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; z-index: 10; opacity: 0.8;">
             <input type="text" id="searchInput" class="form-control form-control-lg text-center shadow-none" 
-                   placeholder="🔍 Buscar batidora por nombre..." 
-                   style="border-radius: 30px; background-color: #1a1a25; color: var(--neon-blue); border: 1px solid var(--neon-blue);">
+                   placeholder="Buscar máquina por nombre..." 
+                   style="border-radius: 30px; background-color: #1a1a25; color: var(--neon-blue); border: 1px solid var(--neon-blue); padding-left: 55px;">
         </div>
     </div>
 
     <ul class="nav nav-pills mb-4 justify-content-center" id="pills-tab" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#panel-control">🎛️ CONTROL</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#monitor-vivo">📈 MONITOR</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#admin-panel">⚙️ ADMIN</button></li>
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#panel-control">
+                <img src="assets/img/control.png" alt="Control" style="width: 18px; margin-right: 8px; vertical-align: text-bottom;"> CONTROL
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#monitor-vivo">
+                <img src="assets/img/monitor.png" alt="Monitor" style="width: 18px; margin-right: 8px; vertical-align: text-bottom;"> MONITOR
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#admin-panel">
+                <img src="assets/img/registro.png" alt="Admin" style="width: 18px; margin-right: 8px; vertical-align: text-bottom;"> ADMIN
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="pills-tabContent">
@@ -59,7 +74,7 @@
                 <h5 class="text-white mb-4">Agregar Nuevo Dispositivo</h5>
                 <form id="addMixerForm" class="row g-2 mb-4">
                     <div class="col-md-5">
-                        <input type="text" class="form-control" id="devName" placeholder="Nombre (Ej. Batidora X)" required>
+                        <input type="text" class="form-control" id="devName" placeholder="Nombre (Ej. Máquina X)" required>
                     </div>
                     <div class="col-md-4">
                         <input type="number" class="form-control" id="devThreshold" placeholder="Límite Temp (°C)" required>
