@@ -1,27 +1,58 @@
-# ⚡ SmartMix | IronMonitor
+# ⚡ IronMonitor - Industrial IIoT Dashboard
 
-**SmartMix** es un dashboard de monitoreo industrial interactivo diseñado para supervisar y controlar dispositivos de mezcla en tiempo real. Cuenta con una interfaz moderna de estilo *Cyberpunk* (Dark Mode + Neón) y un sistema integrado de seguridad automatizado.
+**IronMonitor** es una plataforma web de monitoreo y control diseñada para equipos industriales (como máquinas de vacío o batidoras de alto rendimiento). Este proyecto permite visualizar en tiempo real el estatus y la temperatura de múltiples dispositivos, aplicando conceptos clave de la Industria 4.0 y el Mantenimiento Predictivo.
 
-## ✨ Características Principales
+Desarrollado como proyecto para la materia de **Implementación de Soluciones IoT** (9º Semestre).
+**Autor:** Angel Ibraym Ortiz Martínez.
 
-* 🎛️ **Panel de Control Interactivo:** Enciende y apaga dispositivos manualmente. Los dispositivos activos cuentan con animaciones visuales (vibración) y retroalimentación de color.
-* 📈 **Monitoreo en Tiempo Real:** Gráfica dinámica impulsada por **Chart.js** que rastrea la temperatura de todos los dispositivos conectados.
-* 🛑 **Sistema "Safe-Stop" (Paro de Emergencia):** Lógica automatizada que detiene los dispositivos inmediatamente si superan su límite de temperatura establecido.
-* 📜 **Historial de Eventos:** Registro tabular de las últimas acciones y cambios de estado de los equipos.
-* ⚙️ **Panel de Administración (CRUD):** Agrega nuevos dispositivos configurando su nombre y límite de temperatura, o elimina equipos fuera de servicio.
-* 🔄 **Modo Resiliencia (Local Fallback):** Si la API externa falla, el sistema entra automáticamente en modo "Demo Local" para que la interfaz siga funcionando sin interrupciones.
+---
+
+## 🚀 Características Principales
+
+* **Búsqueda Dinámica Global:** Barra de búsqueda optimizada que filtra dispositivos en tiempo real a través de las tres pestañas (Control, Monitor y Admin) sin interrumpir la recolección de datos en segundo plano.
+* **Mantenimiento Predictivo (Safe-Stop):** Sistema de seguridad automatizado. Si una máquina supera su umbral térmico máximo, el sistema fuerza un paro de emergencia y registra el evento.
+* **Gráficas en Tiempo Real:** Integración con *Chart.js* para generar paneles individuales por máquina que grafican el comportamiento térmico en vivo, acompañados de una tabla con los últimos 10 registros.
+* **Arquitectura de 3 Paneles:**
+  * **🎛️ Control:** Tarjetas interactivas de cada equipo para encendido/apagado remoto y visualización rápida de estado.
+  * **📈 Monitor:** Vista analítica con gráficas de temperatura e historial de eventos detallado.
+  * **⚙️ Admin:** Panel de gestión para registrar nuevas máquinas en la red o eliminar equipos fuera de servicio.
+* **Interfaz Cyberpunk / Dark Mode:** Diseño UI/UX enfocado en entornos industriales de poca luz, utilizando Bootstrap 5 y una paleta de colores neón (azul/verde) con iconos personalizados.
+* **Simulador Físico (Fallback Mode):** Si la API REST pierde conexión, el sistema cambia automáticamente a un modo "Offline (Demo)" que simula la termodinámica de las máquinas en el navegador.
+
+---
 
 ## 🛠️ Tecnologías Utilizadas
 
-* **Frontend:** HTML5, CSS3 (Custom Properties, Animaciones Keyframes), JavaScript (ES6+, Async/Await).
-* **Framework CSS:** [Bootstrap 5.3](https://getbootstrap.com/)
-* **Librería de Gráficos:** [Chart.js](https://www.chartjs.org/)
-* **Backend / API:** [MockAPI](https://mockapi.io/) (para la simulación de base de datos y endpoints RESTful).
+* **Frontend:** HTML5, CSS3, JavaScript (Vanilla ES6+).
+* **Framework CSS:** Bootstrap 5 (Customized).
+* **Visualización de Datos:** Chart.js.
+* **Backend / API:** MockAPI.io (Simulación de Endpoints RESTful con métodos GET, POST, PUT, DELETE).
+* **Tipografía:** Orbitron & Roboto (Google Fonts).
 
-## 🚀 Cómo ejecutar el proyecto
+---
 
-Este proyecto no requiere instalación de dependencias complejas ni servidores locales especiales (Node.js, etc.) gracias a su arquitectura Vanilla JS.
+## 📂 Estructura del Proyecto
 
-1. **Clona este repositorio:**
-   ```bash
-   git clone [https://github.com/ibraymortizmartinez/IronMonitor.git](https://github.com/ibraymortizmartinez/IronMonitor.git)
+Para que la interfaz visualice correctamente los iconos personalizados, el proyecto debe mantener la siguiente estructura de carpetas:
+
+```text
+IronMonitor/
+├── index.html
+├── README.md
+└── assets/
+    ├── css/
+    │   └── style.css
+    ├── js/
+    │   └── script.js
+    └── img/
+        ├── favIcon.png
+        ├── icon-logo.png
+        ├── icon-search.png
+        ├── icon-control.png
+        ├── icon-monitor.png
+        ├── icon-admin.png
+        ├── icon-machine.png
+        ├── icon-start.png
+        ├── icon-stop.png
+        ├── icon-notfound.png
+        └── icon-history.png
