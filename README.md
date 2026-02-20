@@ -46,13 +46,7 @@ IronMonitor/
     │   └── script.js
     └── img/
         ├── favIcon.png
-        ├── icon-logo.png
-        ├── icon-search.png
+        ├── icon-buscar.png
         ├── icon-control.png
         ├── icon-monitor.png
-        ├── icon-admin.png
-        ├── icon-machine.png
-        ├── icon-start.png
-        ├── icon-stop.png
-        ├── icon-notfound.png
-        └── icon-history.png
+        └── icon-registro.png
