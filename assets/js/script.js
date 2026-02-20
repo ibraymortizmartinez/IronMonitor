@@ -5,11 +5,21 @@ let devicesCache = [];
 let charts = {}; 
 const MAX_DATAPOINTS = 15; 
 let useLocalMode = false;
+let searchQuery = ""; // Variable para guardar lo que el usuario busca
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchDevices();
     setInterval(mainLoop, 2000); 
+
+    // Escuchador de eventos para la barra de búsqueda en tiempo real
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        // Forzamos un renderizado inmediato sin esperar los 2 segundos del ciclo
+        renderControl(devicesCache);
+        renderAdmin(devicesCache);
+        updateCharts(devicesCache); 
+    });
 });
 
 async function mainLoop() {
@@ -62,7 +72,15 @@ function renderControl(mixers) {
     if(!grid) return;
     grid.innerHTML = '';
     
-    mixers.forEach(m => {
+    // Filtrar batidoras según la búsqueda
+    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    
+    if (filteredMixers.length === 0) {
+        grid.innerHTML = '<div class="col-12 text-center mt-5 text-muted"><h5>No se encontraron coincidencias 🔍</h5></div>';
+        return;
+    }
+
+    filteredMixers.forEach(m => {
         const temp = parseFloat(m.sensorValue).toFixed(0);
         const isOn = m.status;
         const isDanger = temp >= m.threshold;
@@ -91,7 +109,11 @@ function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
-    mixers.forEach(m => {
+    
+    // Filtrar batidoras según la búsqueda
+    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+
+    filteredMixers.forEach(m => {
         tbody.innerHTML += `<tr><td>${m.name}</td><td>${m.threshold}°C</td><td><button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">✕</button></td></tr>`;
     });
 }
@@ -116,11 +138,9 @@ function updateCharts(mixers) {
             chartDiv.innerHTML = `
                 <div class="card p-3 h-100 border-off">
                     <h5 class="text-center brand-tech mb-3" style="color: var(--neon-blue); font-size: 1.2rem;">${m.name}</h5>
-                    
                     <canvas id="canvas-${strId}" height="100"></canvas>
-                    
                     <div class="mt-4">
-                        <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">📜 Últimos 10 registros</p>
+                        <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #ffffff; padding-bottom: 5px;">📜 Últimos 10 registros</p>
                         <div class="table-responsive">
                             <table class="table table-sm table-dark-custom mb-0" style="font-size: 0.8rem;">
                                 <thead>
@@ -130,8 +150,7 @@ function updateCharts(mixers) {
                                         <th class="text-secondary text-end">Hora</th>
                                     </tr>
                                 </thead>
-                                <tbody id="history-${strId}">
-                                </tbody>
+                                <tbody id="history-${strId}"></tbody>
                             </table>
                         </div>
                     </div>
@@ -139,7 +158,6 @@ function updateCharts(mixers) {
             `;
             container.appendChild(chartDiv);
 
-            // Inicializar la gráfica de Chart.js
             const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
             charts[strId] = new Chart(ctx, {
                 type: 'line',
@@ -148,7 +166,16 @@ function updateCharts(mixers) {
             });
         }
 
-        // 2. Actualizar los datos de la gráfica
+        // --- FILTRO DE BÚSQUEDA VISUAL ---
+        // Ocultamos o mostramos el contenedor según la búsqueda, pero NO dejamos de procesar los datos
+        const isVisible = m.name.toLowerCase().includes(searchQuery);
+        if (isVisible) {
+            chartDiv.classList.remove('d-none');
+        } else {
+            chartDiv.classList.add('d-none');
+        }
+
+        // 2. Actualizar los datos de la gráfica (Aun estando ocultos)
         const chart = charts[strId];
         const dataset = chart.data.datasets[0];
         const isDanger = m.sensorValue >= m.threshold;
@@ -165,7 +192,7 @@ function updateCharts(mixers) {
         }
         chart.update();
 
-        // 3. Actualizar la mini-tabla de historial
+        // 3. Actualizar la mini-tabla de historial (Aun estando ocultos)
         const tbody = document.getElementById(`history-${strId}`);
         const statusBadge = m.status ? 
             '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : 
@@ -173,7 +200,6 @@ function updateCharts(mixers) {
         
         let tempColor = isDanger ? 'text-danger fw-bold' : 'text-light';
         
-        // Crear nueva fila
         const newRow = `
             <tr>
                 <td class="${tempColor}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
@@ -182,16 +208,12 @@ function updateCharts(mixers) {
             </tr>
         `;
 
-        // Insertar la fila hasta arriba
         tbody.insertAdjacentHTML('afterbegin', newRow);
-
-        // Borrar las filas viejas si hay más de 10
         while(tbody.children.length > 10) {
             tbody.removeChild(tbody.lastChild);
         }
     });
 
-    // Limpieza de eliminados
     Object.keys(charts).forEach(id => {
         if (!currentIds.includes(id)) {
             charts[id].destroy(); 
