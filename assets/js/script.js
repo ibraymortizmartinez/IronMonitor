@@ -2,14 +2,13 @@ const API_URL = 'https://698a1871c04d974bc6a1579f.mockapi.io/api/v1';
 const DEVICES_URL = `${API_URL}/logs`; 
 
 let devicesCache = [];
-let charts = {}; // Diccionario para guardar las gráficas individuales
-const MAX_DATAPOINTS = 15; // Límite de puntos en el tiempo a mostrar
+let charts = {}; 
+const MAX_DATAPOINTS = 15; 
 let useLocalMode = false;
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchDevices();
-    // Ciclo principal de actualización cada 2 segundos
     setInterval(mainLoop, 2000); 
 });
 
@@ -17,11 +16,10 @@ async function mainLoop() {
     if(useLocalMode) {
         simulatePhysicsLocal(); 
         renderControl(devicesCache);
-        updateCharts(devicesCache); // Llama a la nueva función de gráficas
+        updateCharts(devicesCache); 
     } else {
         await simulatePhysicsAndSave();
         await fetchDevices();
-        await renderHistoryTable();
     }
 }
 
@@ -55,7 +53,7 @@ async function fetchDevices() {
     }
     renderControl(devicesCache);
     renderAdmin(devicesCache);
-    updateCharts(devicesCache); // Llama a la nueva función de gráficas
+    updateCharts(devicesCache); 
 }
 
 // --- RENDERS ---
@@ -89,32 +87,6 @@ function renderControl(mixers) {
     });
 }
 
-async function renderHistoryTable() {
-    try {
-        const res = await fetch(DEVICES_URL);
-        const data = await res.json();
-        const history = [...data].sort((a, b) => b.id - a.id).slice(0, 10);
-        
-        const tbody = document.getElementById('historyTableBody');
-        tbody.innerHTML = history.map(log => {
-            const date = log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Reciente';
-            const statusBadge = log.status ? 
-                '<span class="badge bg-success bg-opacity-25 text-success border border-success">Activo</span>' : 
-                '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary">Paro</span>';
-            
-            return `
-                <tr>
-                    <td class="fw-bold text-info">${log.deviceId || 'Sistema'}</td>
-                    <td>${parseFloat(log.value).toFixed(1)}°C</td>
-                    <td>${statusBadge}</td>
-                    <td class="text-muted italic">${log.message || 'Sin reporte'}</td>
-                    <td>${date}</td>
-                </tr>
-            `;
-        }).join('');
-    } catch (e) {}
-}
-
 function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
     if(!tbody) return;
@@ -124,12 +96,11 @@ function renderAdmin(mixers) {
     });
 }
 
-// --- LÓGICA DINÁMICA DE GRÁFICAS ---
+// --- LÓGICA DINÁMICA DE GRÁFICAS E HISTORIAL ---
 function updateCharts(mixers) {
     const container = document.getElementById('chartsContainer');
     if(!container) return;
 
-    // Obtener la hora actual para el eje X
     const currentTime = new Date().toLocaleTimeString('es-ES', { hour12: false });
     const currentIds = mixers.map(m => m.id.toString());
 
@@ -137,69 +108,90 @@ function updateCharts(mixers) {
         const strId = m.id.toString();
         let chartDiv = document.getElementById(`chart-wrapper-${strId}`);
         
-        // Si la batidora no tiene su gráfica aún, la creamos
+        // 1. Crear la tarjeta con Gráfica y Tabla si no existe
         if (!chartDiv) {
             chartDiv = document.createElement('div');
-            chartDiv.className = 'col-md-6 mb-3'; // Dos gráficas por fila en PC
+            chartDiv.className = 'col-lg-6 mb-3'; 
             chartDiv.id = `chart-wrapper-${strId}`;
             chartDiv.innerHTML = `
-                <div class="p-3 border border-secondary rounded" style="background-color: #1a1a25;">
-                    <h6 class="text-center" style="color: var(--neon-blue); font-family: 'Orbitron', sans-serif;">${m.name}</h6>
-                    <canvas id="canvas-${strId}" height="150"></canvas>
+                <div class="card p-3 h-100 border-off">
+                    <h5 class="text-center brand-tech mb-3" style="color: var(--neon-blue); font-size: 1.2rem;">${m.name}</h5>
+                    
+                    <canvas id="canvas-${strId}" height="100"></canvas>
+                    
+                    <div class="mt-4">
+                        <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">📜 Últimos 10 registros</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-dark-custom mb-0" style="font-size: 0.8rem;">
+                                <thead>
+                                    <tr>
+                                        <th class="text-secondary">Temp</th>
+                                        <th class="text-secondary">Estatus</th>
+                                        <th class="text-secondary text-end">Hora</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-${strId}">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             `;
             container.appendChild(chartDiv);
 
+            // Inicializar la gráfica de Chart.js
             const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
             charts[strId] = new Chart(ctx, {
                 type: 'line',
-                data: { 
-                    labels: [], 
-                    datasets: [{ 
-                        label: 'Temp (°C)', 
-                        data: [], 
-                        borderColor: '#00d4ff', 
-                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                        fill: true, 
-                        tension: 0.4,
-                        pointRadius: 2
-                    }] 
-                },
-                options: { 
-                    responsive: true,
-                    animation: false, // Apagado para evitar parpadeos en cada ciclo
-                    plugins: { legend: { display: false } },
-                    scales: { 
-                        y: { grid: { color: '#333' }, suggestedMin: 15, suggestedMax: parseInt(m.threshold) + 10 },
-                        x: { grid: { color: '#333' }, ticks: { color: '#888', font: {size: 10} } }
-                    } 
-                }
+                data: { labels: [], datasets: [{ label: 'Temp', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0, 212, 255, 0.1)', fill: true, tension: 0.4, pointRadius: 2 }] },
+                options: { responsive: true, animation: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' }, suggestedMin: 15, suggestedMax: parseInt(m.threshold) + 10 }, x: { grid: { color: '#333' }, ticks: { color: '#888', font: {size: 10} } } } }
             });
         }
 
-        // Actualizamos los datos de la gráfica de esta batidora
+        // 2. Actualizar los datos de la gráfica
         const chart = charts[strId];
         const dataset = chart.data.datasets[0];
-        
-        // Cambiar color si está en peligro o apagada
         const isDanger = m.sensorValue >= m.threshold;
+        
         dataset.borderColor = isDanger ? '#ff2a2a' : (m.status ? '#00ff9d' : '#00d4ff');
         dataset.backgroundColor = isDanger ? 'rgba(255, 42, 42, 0.1)' : (m.status ? 'rgba(0, 255, 157, 0.1)' : 'rgba(0, 212, 255, 0.1)');
 
-        // Agregar el nuevo dato en el tiempo
         chart.data.labels.push(currentTime);
         dataset.data.push(m.sensorValue);
 
-        // Mantener solo los últimos X puntos en el histórico de la gráfica
         if (chart.data.labels.length > MAX_DATAPOINTS) {
             chart.data.labels.shift();
             dataset.data.shift();
         }
-
         chart.update();
+
+        // 3. Actualizar la mini-tabla de historial
+        const tbody = document.getElementById(`history-${strId}`);
+        const statusBadge = m.status ? 
+            '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : 
+            '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary" style="font-size: 0.7rem;">Paro</span>';
+        
+        let tempColor = isDanger ? 'text-danger fw-bold' : 'text-light';
+        
+        // Crear nueva fila
+        const newRow = `
+            <tr>
+                <td class="${tempColor}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
+                <td>${statusBadge}</td>
+                <td class="text-end text-muted">${currentTime}</td>
+            </tr>
+        `;
+
+        // Insertar la fila hasta arriba
+        tbody.insertAdjacentHTML('afterbegin', newRow);
+
+        // Borrar las filas viejas si hay más de 10
+        while(tbody.children.length > 10) {
+            tbody.removeChild(tbody.lastChild);
+        }
     });
 
-    // Limpieza: Eliminar gráficas de dispositivos que fueron borrados en el Admin
+    // Limpieza de eliminados
     Object.keys(charts).forEach(id => {
         if (!currentIds.includes(id)) {
             charts[id].destroy(); 
