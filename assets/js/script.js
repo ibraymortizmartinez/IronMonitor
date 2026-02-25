@@ -7,7 +7,7 @@ const MAX_DATAPOINTS = 15;
 let useLocalMode = false;
 let searchQuery = ""; 
 
-// NUEVO: Guardamos valores anteriores para calcular las flechas de tendencia (sube/baja)
+// Guardamos valores anteriores para calcular las flechas de tendencia (sube/baja)
 let lastValuesMap = {}; 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -152,7 +152,6 @@ function renderControl(mixers) {
     });
 }
 
-
 function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
     if(!tbody) return;
@@ -202,14 +201,14 @@ function updateCharts(mixers) {
                     <h5 class="text-center brand-tech mb-3" style="color: var(--neon-blue); font-size: 1.2rem;">${m.name}</h5>
                     <canvas id="canvas-${strId}" height="100"></canvas>
                     <div class="mt-4">
-                        <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #ffffff; padding-bottom: 5px;">📜 Últimos 10 registros</p>
+                        <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">📜 Últimos 10 registros</p>
                         <div class="table-responsive">
-                            <table class="table table-sm table-dark-custom mb-0" style="font-size: 0.8rem;">
+                            <table class="table table-sm table-dark mb-0" style="font-size: 0.8rem; background-color: transparent;">
                                 <thead>
                                     <tr>
-                                        <th class="text-secondary">Temp</th>
-                                        <th class="text-secondary">Estatus</th>
-                                        <th class="text-secondary text-end">Hora</th>
+                                        <th class="text-secondary border-bottom border-secondary">Temp</th>
+                                        <th class="text-secondary border-bottom border-secondary">Estatus</th>
+                                        <th class="text-secondary text-end border-bottom border-secondary">Hora</th>
                                     </tr>
                                 </thead>
                                 <tbody id="history-${strId}"></tbody>
@@ -223,8 +222,22 @@ function updateCharts(mixers) {
             const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
             charts[strId] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ label: 'Temp', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0, 212, 255, 0.1)', fill: true, tension: 0.4, pointRadius: 2 }] },
-                options: { responsive: true, animation: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' }, suggestedMin: 15, suggestedMax: parseInt(m.threshold) + 10 }, x: { grid: { color: '#333' }, ticks: { color: '#888', font: {size: 10} } } } }
+                data: { 
+                    labels: [], 
+                    datasets: [
+                        { label: 'Temp', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0, 212, 255, 0.1)', fill: true, tension: 0.4, pointRadius: 2 },
+                        { label: 'Límite', data: [], borderColor: '#ff2a2a', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false }
+                    ] 
+                },
+                options: { 
+                    responsive: true, 
+                    animation: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { grid: { color: '#333' }, suggestedMin: 15, suggestedMax: parseInt(m.threshold) + 10 }, 
+                        x: { grid: { color: '#333' }, ticks: { color: '#888', font: {size: 10} } } 
+                    } 
+                }
             });
         }
 
@@ -232,18 +245,21 @@ function updateCharts(mixers) {
         if (isVisible) chartDiv.classList.remove('d-none'); else chartDiv.classList.add('d-none');
 
         const chart = charts[strId];
-        const dataset = chart.data.datasets[0];
+        const datasetTemp = chart.data.datasets[0]; 
+        const datasetThreshold = chart.data.datasets[1]; 
         const isDanger = m.sensorValue >= m.threshold;
         
-        dataset.borderColor = isDanger ? '#ff2a2a' : (m.status ? '#00ff9d' : '#00d4ff');
-        dataset.backgroundColor = isDanger ? 'rgba(255, 42, 42, 0.1)' : (m.status ? 'rgba(0, 255, 157, 0.1)' : 'rgba(0, 212, 255, 0.1)');
+        datasetTemp.borderColor = isDanger ? '#ff2a2a' : (m.status ? '#00ff9d' : '#00d4ff');
+        datasetTemp.backgroundColor = isDanger ? 'rgba(255, 42, 42, 0.1)' : (m.status ? 'rgba(0, 255, 157, 0.1)' : 'rgba(0, 212, 255, 0.1)');
 
         chart.data.labels.push(currentTime);
-        dataset.data.push(m.sensorValue);
+        datasetTemp.data.push(m.sensorValue);
+        datasetThreshold.data.push(m.threshold);
 
         if (chart.data.labels.length > MAX_DATAPOINTS) {
             chart.data.labels.shift();
-            dataset.data.shift();
+            datasetTemp.data.shift();
+            datasetThreshold.data.shift();
         }
         chart.update();
 
@@ -251,8 +267,9 @@ function updateCharts(mixers) {
         const statusBadge = m.status ? '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary" style="font-size: 0.7rem;">Paro</span>';
         let tempColor = isDanger ? 'text-danger fw-bold' : 'text-light';
         
-        const newRow = `<tr><td class="${tempColor}">${parseFloat(m.sensorValue).toFixed(1)}°C</td><td>${statusBadge}</td><td class="text-end text-muted">${currentTime}</td></tr>`;
+        const newRow = `<tr><td class="${tempColor} border-bottom border-dark">${parseFloat(m.sensorValue).toFixed(1)}°C</td><td class="border-bottom border-dark">${statusBadge}</td><td class="text-end text-muted border-bottom border-dark">${currentTime}</td></tr>`;
         tbody.insertAdjacentHTML('afterbegin', newRow);
+        
         while(tbody.children.length > 10) tbody.removeChild(tbody.lastChild);
     });
 
@@ -303,17 +320,15 @@ async function toggleMixer(id, current) {
     }
 }
 
-// NUEVA FUNCIÓN: PARO DE EMERGENCIA GLOBAL
+// PARO DE EMERGENCIA GLOBAL
 async function emergencyStopAll() {
     if(!confirm("⚠️ ADVERTENCIA: ¿Estás seguro que deseas DETENER TODAS las máquinas?")) return;
     
-    // Lo aplicamos en local inmediatamente para reflejar en la interfaz sin delay
     devicesCache.forEach(m => {
         if(m.status) m.status = false;
     });
     renderControl(devicesCache);
     
-    // Si estamos online, mandamos apagar todo en la API
     if(!useLocalMode) {
         for (let mixer of devicesCache) {
             try {
