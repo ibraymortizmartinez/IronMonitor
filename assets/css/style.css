@@ -105,3 +105,17 @@ body {
     border-color: #333; 
     padding: 12px; 
 }
+
+/* --- MEJORAS TABLA ADMIN --- */
+.table-dark-custom td { 
+    vertical-align: middle; 
+}
+
+.pulse-alert {
+    animation: pulse-warning 1s infinite alternate;
+}
+
+@keyframes pulse-warning {
+    0% { opacity: 1; text-shadow: 0 0 5px var(--neon-red); color: var(--neon-red) !important;}
+    100% { opacity: 0.7; }
+}

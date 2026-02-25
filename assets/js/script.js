@@ -27,6 +27,7 @@ async function mainLoop() {
         simulatePhysicsLocal(); 
         renderControl(devicesCache);
         updateCharts(devicesCache); 
+        renderAdmin(devicesCache); // Actualiza la tabla admin en modo local
     } else {
         await simulatePhysicsAndSave();
         await fetchDevices();
@@ -105,6 +106,7 @@ function renderControl(mixers) {
     });
 }
 
+// --- RENDER ADMIN MEJORADO ---
 function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
     if(!tbody) return;
@@ -114,10 +116,32 @@ function renderAdmin(mixers) {
     const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
 
     filteredMixers.forEach(m => {
-        tbody.innerHTML += `<tr><td>${m.name}</td><td>${m.threshold}°C</td><td><button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">✕</button></td></tr>`;
+        // Indicador visual de estado
+        const statusLabel = m.status ? 
+            '<span class="text-success fw-bold" style="font-size: 0.8rem;">● ACTIVO</span>' : 
+            '<span class="text-secondary" style="font-size: 0.8rem;">● PARO</span>';
+
+        // Alerta si está cerca del límite (a 5 grados o menos) y está encendida
+        // ELIMINAMOS 'text-white' para que el texto tome el color oscuro por defecto
+        const isNearLimit = (m.threshold - m.sensorValue) <= 5 && m.status;
+        const tempClass = isNearLimit ? 'text-warning fw-bold pulse-alert' : 'text-dark';
+
+        tbody.innerHTML += `
+        <tr>
+            <td class="text-muted" style="font-size: 0.8rem;">#${m.id}</td>
+            <td class="fw-bold text-dark">${m.name}</td>
+            <td>${statusLabel}</td>
+            <td class="${tempClass}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
+            <td class="text-dark">${m.threshold}°C</td>
+            <td>
+                <div class="btn-group">
+                    <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info me-2" title="Editar">✏️</button>
+                    <button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger" title="Eliminar">✕</button>
+                </div>
+            </td>
+        </tr>`;
     });
 }
-
 // --- LÓGICA DINÁMICA DE GRÁFICAS E HISTORIAL ---
 function updateCharts(mixers) {
     const container = document.getElementById('chartsContainer');
@@ -167,7 +191,6 @@ function updateCharts(mixers) {
         }
 
         // --- FILTRO DE BÚSQUEDA VISUAL ---
-        // Ocultamos o mostramos el contenedor según la búsqueda, pero NO dejamos de procesar los datos
         const isVisible = m.name.toLowerCase().includes(searchQuery);
         if (isVisible) {
             chartDiv.classList.remove('d-none');
@@ -309,36 +332,15 @@ async function deleteDev(id) {
         fetchDevices();
     }
 }
-function renderAdmin(mixers) {
-    const tbody = document.getElementById('adminTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
-    
-    filteredMixers.forEach(m => {
-        tbody.innerHTML += `
-        <tr>
-            <td>${m.name}</td>
-            <td>${m.threshold}°C</td>
-            <td>
-                <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info me-2">Editar</button>
-                <button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">✕</button>
-            </td>
-        </tr>`;
-    });
-}
 
 // --- LÓGICA DE EDICIÓN (MODAL) ---
 function openEditModal(id) {
-    // Buscar los datos actuales del dispositivo
     const mixer = devicesCache.find(m => m.id === id);
     if (mixer) {
-        // Llenar los campos del formulario modal
         document.getElementById('editId').value = mixer.id;
         document.getElementById('editName').value = mixer.name;
         document.getElementById('editThreshold').value = mixer.threshold;
         
-        // Mostrar el modal usando Bootstrap JS
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
     }
@@ -352,7 +354,6 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
     const newThreshold = document.getElementById('editThreshold').value;
 
     if (!useLocalMode) {
-        // Enviar la actualización a MockAPI
         try {
             await fetch(`${DEVICES_URL}/${id}`, { 
                 method: 'PUT', 
@@ -363,7 +364,6 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
             console.error("Error al actualizar", error);
         }
     } else {
-        // Actualizar localmente si no hay conexión
         const mixer = devicesCache.find(m => m.id === id);
         if (mixer) {
             mixer.name = newName;
@@ -371,11 +371,37 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
         }
     }
 
-    // Ocultar el modal
     const modalEl = document.getElementById('editModal');
     const modalInstance = bootstrap.Modal.getInstance(modalEl);
     modalInstance.hide();
 
-    // Refrescar los datos en pantalla
     fetchDevices();
 });
+
+// --- FUNCIÓN PARA EXPORTAR A CSV ---
+function exportToCSV() {
+    if (devicesCache.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\n";
+    csvContent += "ID,Dispositivo,Estado,Temperatura_Actual,Limite_Seguridad\n";
+
+    devicesCache.forEach(m => {
+        const status = m.status ? "ACTIVO" : "PARO";
+        const temp = parseFloat(m.sensorValue).toFixed(2);
+        // Evitamos comas en los nombres para no romper el formato CSV
+        const safeName = m.name.replace(/,/g, ''); 
+        
+        csvContent += `${m.id},${safeName},${status},${temp},${m.threshold}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Reporte_IronMonitor.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
