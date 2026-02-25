@@ -44,7 +44,7 @@ body {
     box-shadow: 0 0 15px rgba(255, 42, 42, 0.6);
 }
 
-/* --- ANIMACIONES (NUEVO) --- */
+/* --- ANIMACIONES --- */
 @keyframes spin { 100% { transform: rotate(360deg); } }
 .spin-gear {
     display: inline-block;
@@ -59,7 +59,7 @@ body {
 }
 .led-blink { animation: blink 1.5s infinite; }
 
-/* --- BARRAS DE PROGRESO Y TEXTOS (NUEVO) --- */
+/* --- BARRAS DE PROGRESO Y TEXTOS --- */
 .progress-container { background-color: #121212; border-radius: 10px; overflow: hidden; height: 8px; margin-top: 5px; border: 1px solid #333;}
 .progress-bar { transition: width 0.5s ease-in-out, background-color 0.5s; height: 100%; }
 
@@ -73,7 +73,8 @@ body {
 .form-control { background-color: #2a2a35; border: 1px solid #444; color: white; }
 .form-control:focus { background-color: #333; color: white; border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 212, 255, 0.3); }
 
-.table-dark-custom { color: #ccc; font-size: 0.9rem; }
-.table-dark-custom td, .table-dark-custom th { border-color: #333; padding: 12px; vertical-align: middle; }
+/* Ajustes de Tabla para que no se pierda el texto oscuro */
+.table-dark-custom { color: #f8f9fa !important; font-size: 0.9rem; }
+.table-dark-custom td, .table-dark-custom th { border-color: #333; padding: 12px; vertical-align: middle; background-color: transparent !important; color: inherit; }
 .pulse-alert { animation: pulse-warning 1s infinite alternate; }
 @keyframes pulse-warning { 0% { opacity: 1; text-shadow: 0 0 5px var(--neon-red); color: var(--neon-red) !important;} 100% { opacity: 0.7; } }

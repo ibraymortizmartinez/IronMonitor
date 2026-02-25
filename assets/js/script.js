@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function mainLoop() {
-    // Guardamos las temperaturas antes de simular o descargar nuevas
     devicesCache.forEach(d => lastValuesMap[d.id] = d.sensorValue);
 
     if(useLocalMode) {
@@ -80,7 +79,7 @@ function renderControl(mixers) {
         return;
     }
 
-    const nowStr = new Date().toLocaleTimeString('es-ES'); // Hora de última actualización
+    const nowStr = new Date().toLocaleTimeString('es-ES'); 
 
     filteredMixers.forEach(m => {
         const temp = parseFloat(m.sensorValue).toFixed(0);
@@ -91,7 +90,6 @@ function renderControl(mixers) {
         let statusColor = isOn ? '#00ff9d' : '#666';
         if (isDanger) { borderClass = 'border-danger'; statusColor = '#ff2a2a'; }
 
-        // Lógica de flechas de tendencia
         let prevVal = lastValuesMap[m.id] !== undefined ? lastValuesMap[m.id] : m.sensorValue;
         let trendIcon = '➖';
         let trendClass = 'text-trend-stable';
@@ -102,15 +100,13 @@ function renderControl(mixers) {
             trendIcon = '⬇️'; trendClass = 'text-trend-down';
         }
 
-        // Lógica de Barra de Progreso
         let progressPercent = (m.sensorValue / m.threshold) * 100;
         if (progressPercent > 100) progressPercent = 100;
         
-        let progressColor = '#00d4ff'; // Azul por defecto
-        if (progressPercent > 70) progressColor = '#ffc107'; // Amarillo si se acerca
-        if (progressPercent >= 90) progressColor = '#ff2a2a'; // Rojo si es peligro
+        let progressColor = '#00d4ff'; 
+        if (progressPercent > 70) progressColor = '#ffc107'; 
+        if (progressPercent >= 90) progressColor = '#ff2a2a'; 
 
-        // Animaciones dinámicas
         const gearAnim = isOn ? 'spin-gear' : '';
         const ledAnim = isOn ? 'led-blink' : '';
 
@@ -162,15 +158,15 @@ function renderAdmin(mixers) {
     filteredMixers.forEach(m => {
         const statusLabel = m.status ? '<span class="text-success fw-bold" style="font-size: 0.8rem;">● ACTIVO</span>' : '<span class="text-secondary" style="font-size: 0.8rem;">● PARO</span>';
         const isNearLimit = (m.threshold - m.sensorValue) <= 5 && m.status;
-        const tempClass = isNearLimit ? 'text-warning fw-bold pulse-alert' : 'text-dark';
+        const tempClass = isNearLimit ? 'text-warning fw-bold pulse-alert' : 'text-light';
 
         tbody.innerHTML += `
         <tr>
-            <td class="text-muted" style="font-size: 0.8rem;">#${m.id}</td>
-            <td class="fw-bold text-dark">${m.name}</td>
+            <td class="text-light" style="font-size: 0.8rem;">#${m.id}</td>
+            <td class="fw-bold text-light">${m.name}</td>
             <td>${statusLabel}</td>
             <td class="${tempClass}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
-            <td class="text-dark">${m.threshold}°C</td>
+            <td class="text-light">${m.threshold}°C</td>
             <td>
                 <div class="btn-group">
                     <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info me-2" title="Editar">✏️</button>
@@ -203,7 +199,7 @@ function updateCharts(mixers) {
                     <div class="mt-4">
                         <p class="text-muted mb-2" style="font-size: 0.85rem; border-bottom: 1px solid #333; padding-bottom: 5px;">📜 Últimos 10 registros</p>
                         <div class="table-responsive">
-                            <table class="table table-sm table-dark mb-0" style="font-size: 0.8rem; background-color: transparent;">
+                            <table class="table table-dark-custom table-sm mb-0" style="font-size: 0.8rem; background-color: transparent;">
                                 <thead>
                                     <tr>
                                         <th class="text-secondary border-bottom border-secondary">Temp</th>
@@ -267,7 +263,7 @@ function updateCharts(mixers) {
         const statusBadge = m.status ? '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary" style="font-size: 0.7rem;">Paro</span>';
         let tempColor = isDanger ? 'text-danger fw-bold' : 'text-light';
         
-        const newRow = `<tr><td class="${tempColor} border-bottom border-dark">${parseFloat(m.sensorValue).toFixed(1)}°C</td><td class="border-bottom border-dark">${statusBadge}</td><td class="text-end text-muted border-bottom border-dark">${currentTime}</td></tr>`;
+        const newRow = `<tr><td class="${tempColor} border-bottom border-dark">${parseFloat(m.sensorValue).toFixed(1)}°C</td><td class="border-bottom border-dark">${statusBadge}</td><td class="text-end text-light border-bottom border-dark">${currentTime}</td></tr>`;
         tbody.insertAdjacentHTML('afterbegin', newRow);
         
         while(tbody.children.length > 10) tbody.removeChild(tbody.lastChild);
