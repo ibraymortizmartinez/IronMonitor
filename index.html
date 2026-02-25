@@ -7,7 +7,6 @@
     
     <link rel="icon" href="assets/img/favIcon.png">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
@@ -27,13 +26,18 @@
 
 <div class="container mt-4">
     
-    <div class="row justify-content-center mb-4">
-        <div class="col-md-8 position-relative">
+    <div class="row justify-content-center mb-4 align-items-center">
+        <div class="col-md-7 position-relative mb-3 mb-md-0">
             <img src="assets/img/buscar.png" alt="Buscar" 
                  style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; z-index: 10; opacity: 0.8;">
-            <input type="text" id="searchInput" class="form-control form-control-lg text-center shadow-none" 
+            <input type="text" id="searchInput" class="form-control form-control-lg shadow-none" 
                    placeholder="Buscar máquina por nombre..." 
-                   style="border-radius: 30px; background-color: #1a1a25; color: var(--neon-blue); border: 1px solid var(--neon-blue); padding-left: 55px;">
+                   style="border-radius: 30px; background-color: #1a1a25; color: var(--neon-blue); border: 1px solid var(--neon-blue); padding-left: 60px;">
+        </div>
+        <div class="col-md-3">
+            <button onclick="emergencyStopAll()" class="btn w-100 fw-bold btn-emergency shadow-lg">
+                🛑 PARO GENERAL
+            </button>
         </div>
     </div>
 
@@ -110,22 +114,22 @@
     </div>
 </div>
 
-<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="background-color: #1a1a25; color: white; border: 1px solid var(--neon-blue);">
             <div class="modal-header" style="border-bottom: 1px solid #333;">
-                <h5 class="modal-title brand-tech" id="editModalLabel" style="color: var(--neon-blue);">✏️ Editar Máquina</h5>
+                <h5 class="modal-title brand-tech" style="color: var(--neon-blue);">✏️ Editar Máquina</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="editForm">
                     <input type="hidden" id="editId">
                     <div class="mb-3">
-                        <label for="editName" class="form-label text-secondary">Nombre del Dispositivo</label>
+                        <label class="form-label text-secondary">Nombre del Dispositivo</label>
                         <input type="text" class="form-control" id="editName" required style="background-color: #0c0c14; color: white; border: 1px solid #333;">
                     </div>
                     <div class="mb-4">
-                        <label for="editThreshold" class="form-label text-secondary">Límite de Temp (°C)</label>
+                        <label class="form-label text-secondary">Límite de Temp (°C)</label>
                         <input type="number" class="form-control" id="editThreshold" required style="background-color: #0c0c14; color: white; border: 1px solid #333;">
                     </div>
                     <div class="d-flex justify-content-end">
@@ -137,17 +141,6 @@
         </div>
     </div>
 </div>
-
-<footer class="container-fluid text-center mt-5 py-4" style="background: linear-gradient(to top, #0c0c14, transparent); border-top: 1px solid #2a2a35;">
-    <div class="container">
-        <p style="color: #c0c0c0; font-size: 0.95rem; letter-spacing: 0.5px; margin-bottom: 5px;">
-            &copy; 2026 Angel Ibraym Ortiz Martínez | <strong style="color: var(--neon-blue); font-family: 'Orbitron', sans-serif;">IronMonitor</strong> Solutions.
-        </p>
-        <small style="color: #888;">
-            Todos los derechos reservados. Proyecto de Implementación de Soluciones IoT.
-        </small>
-    </div>
-</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

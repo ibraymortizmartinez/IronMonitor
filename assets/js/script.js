@@ -5,17 +5,17 @@ let devicesCache = [];
 let charts = {}; 
 const MAX_DATAPOINTS = 15; 
 let useLocalMode = false;
-let searchQuery = ""; // Variable para guardar lo que el usuario busca
+let searchQuery = ""; 
 
-// --- INICIALIZACIÓN ---
+// NUEVO: Guardamos valores anteriores para calcular las flechas de tendencia (sube/baja)
+let lastValuesMap = {}; 
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchDevices();
     setInterval(mainLoop, 2000); 
 
-    // Escuchador de eventos para la barra de búsqueda en tiempo real
     document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase();
-        // Forzamos un renderizado inmediato sin esperar los 2 segundos del ciclo
         renderControl(devicesCache);
         renderAdmin(devicesCache);
         updateCharts(devicesCache); 
@@ -23,18 +23,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function mainLoop() {
+    // Guardamos las temperaturas antes de simular o descargar nuevas
+    devicesCache.forEach(d => lastValuesMap[d.id] = d.sensorValue);
+
     if(useLocalMode) {
         simulatePhysicsLocal(); 
-        renderControl(devicesCache);
-        updateCharts(devicesCache); 
-        renderAdmin(devicesCache); // Actualiza la tabla admin en modo local
     } else {
         await simulatePhysicsAndSave();
         await fetchDevices();
     }
+    
+    renderControl(devicesCache);
+    updateCharts(devicesCache); 
+    renderAdmin(devicesCache);
 }
 
-// --- COMUNICACIÓN API ---
 async function fetchDevices() {
     try {
         const res = await fetch(DEVICES_URL);
@@ -51,7 +54,7 @@ async function fetchDevices() {
                 name: d.deviceId || "Sin Nombre",
                 sensorValue: parseFloat(d.value) || 20,
                 status: d.status !== undefined ? d.status : false, 
-                threshold: d.threshold || 90,
+                threshold: parseFloat(d.threshold) || 90,
                 message: d.message || "Operación Normal"
             }));
             useLocalMode = false;
@@ -62,9 +65,6 @@ async function fetchDevices() {
         updateStatus('OFFLINE (DEMO)', 'danger');
         if (devicesCache.length === 0) devicesCache = getLocalData();
     }
-    renderControl(devicesCache);
-    renderAdmin(devicesCache);
-    updateCharts(devicesCache); 
 }
 
 // --- RENDERS ---
@@ -73,7 +73,6 @@ function renderControl(mixers) {
     if(!grid) return;
     grid.innerHTML = '';
     
-    // Filtrar batidoras según la búsqueda
     const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
     
     if (filteredMixers.length === 0) {
@@ -81,48 +80,88 @@ function renderControl(mixers) {
         return;
     }
 
+    const nowStr = new Date().toLocaleTimeString('es-ES'); // Hora de última actualización
+
     filteredMixers.forEach(m => {
         const temp = parseFloat(m.sensorValue).toFixed(0);
         const isOn = m.status;
         const isDanger = temp >= m.threshold;
+        
         let borderClass = isOn ? 'border-on' : 'border-off';
         let statusColor = isOn ? '#00ff9d' : '#666';
         if (isDanger) { borderClass = 'border-danger'; statusColor = '#ff2a2a'; }
+
+        // Lógica de flechas de tendencia
+        let prevVal = lastValuesMap[m.id] !== undefined ? lastValuesMap[m.id] : m.sensorValue;
+        let trendIcon = '➖';
+        let trendClass = 'text-trend-stable';
+        
+        if (m.sensorValue > prevVal) {
+            trendIcon = '⬆️'; trendClass = 'text-trend-up';
+        } else if (m.sensorValue < prevVal) {
+            trendIcon = '⬇️'; trendClass = 'text-trend-down';
+        }
+
+        // Lógica de Barra de Progreso
+        let progressPercent = (m.sensorValue / m.threshold) * 100;
+        if (progressPercent > 100) progressPercent = 100;
+        
+        let progressColor = '#00d4ff'; // Azul por defecto
+        if (progressPercent > 70) progressColor = '#ffc107'; // Amarillo si se acerca
+        if (progressPercent >= 90) progressColor = '#ff2a2a'; // Rojo si es peligro
+
+        // Animaciones dinámicas
+        const gearAnim = isOn ? 'spin-gear' : '';
+        const ledAnim = isOn ? 'led-blink' : '';
 
         grid.innerHTML += `
         <div class="col-md-4 mb-4">
             <div class="card h-100 ${borderClass}">
                 <div class="card-body text-center position-relative">
-                    <div style="position: absolute; top: 15px; right: 15px; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor}"></div>
-                    <h5 class="text-white mb-3">${m.name}</h5>
-                    <div class="mixer-icon mb-2 ${isOn ? 'vibrating' : ''}" style="color: ${isOn ? '#fff' : '#444'}">⚙️</div>
-                    <div class="temp-display my-3" style="color: ${statusColor}">${temp}°C</div>
-                    <button onclick="toggleMixer('${m.id}', ${isOn})" class="btn w-100 ${isOn ? 'btn-outline-danger' : 'btn-outline-info'}">
+                    
+                    <div class="${ledAnim}" style="position: absolute; top: 15px; right: 15px; width: 12px; height: 12px; border-radius: 50%; background: ${statusColor};"></div>
+                    
+                    <h5 class="text-white mb-3 fw-bold">${m.name}</h5>
+                    
+                    <div class="mb-2 ${gearAnim}" style="color: ${isOn ? 'var(--neon-blue)' : '#444'}; font-size: 3.5rem;">⚙️</div>
+                    
+                    <div class="my-2 d-flex justify-content-center align-items-center" style="font-family: 'Orbitron'; font-size: 2.5rem; font-weight: bold; color: ${statusColor}">
+                        ${temp}°C <span class="${trendClass} ms-2" style="font-size: 1.5rem; font-family: 'Roboto';">${trendIcon}</span>
+                    </div>
+
+                    <div class="px-2 mb-4 text-start">
+                        <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem; margin-bottom: 2px;">
+                            <span>Actual</span>
+                            <span>Límite: ${m.threshold}°C</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${progressColor};"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="toggleMixer('${m.id}', ${isOn})" class="btn w-100 fw-bold ${isOn ? 'btn-outline-danger' : 'btn-outline-info'}">
                         ${isOn ? '🛑 DETENER' : '⚡ INICIAR'}
                     </button>
+
+                    <div class="mt-3 text-secondary" style="font-size: 0.75rem;">
+                        ⏱️ Act: ${nowStr}
+                    </div>
                 </div>
             </div>
         </div>`;
     });
 }
 
-// --- RENDER ADMIN MEJORADO ---
+
 function renderAdmin(mixers) {
     const tbody = document.getElementById('adminTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
     
-    // Filtrar batidoras según la búsqueda
     const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
 
     filteredMixers.forEach(m => {
-        // Indicador visual de estado
-        const statusLabel = m.status ? 
-            '<span class="text-success fw-bold" style="font-size: 0.8rem;">● ACTIVO</span>' : 
-            '<span class="text-secondary" style="font-size: 0.8rem;">● PARO</span>';
-
-        // Alerta si está cerca del límite (a 5 grados o menos) y está encendida
-        // ELIMINAMOS 'text-white' para que el texto tome el color oscuro por defecto
+        const statusLabel = m.status ? '<span class="text-success fw-bold" style="font-size: 0.8rem;">● ACTIVO</span>' : '<span class="text-secondary" style="font-size: 0.8rem;">● PARO</span>';
         const isNearLimit = (m.threshold - m.sensorValue) <= 5 && m.status;
         const tempClass = isNearLimit ? 'text-warning fw-bold pulse-alert' : 'text-dark';
 
@@ -142,7 +181,7 @@ function renderAdmin(mixers) {
         </tr>`;
     });
 }
-// --- LÓGICA DINÁMICA DE GRÁFICAS E HISTORIAL ---
+
 function updateCharts(mixers) {
     const container = document.getElementById('chartsContainer');
     if(!container) return;
@@ -154,7 +193,6 @@ function updateCharts(mixers) {
         const strId = m.id.toString();
         let chartDiv = document.getElementById(`chart-wrapper-${strId}`);
         
-        // 1. Crear la tarjeta con Gráfica y Tabla si no existe
         if (!chartDiv) {
             chartDiv = document.createElement('div');
             chartDiv.className = 'col-lg-6 mb-3'; 
@@ -190,15 +228,9 @@ function updateCharts(mixers) {
             });
         }
 
-        // --- FILTRO DE BÚSQUEDA VISUAL ---
         const isVisible = m.name.toLowerCase().includes(searchQuery);
-        if (isVisible) {
-            chartDiv.classList.remove('d-none');
-        } else {
-            chartDiv.classList.add('d-none');
-        }
+        if (isVisible) chartDiv.classList.remove('d-none'); else chartDiv.classList.add('d-none');
 
-        // 2. Actualizar los datos de la gráfica (Aun estando ocultos)
         const chart = charts[strId];
         const dataset = chart.data.datasets[0];
         const isDanger = m.sensorValue >= m.threshold;
@@ -215,26 +247,13 @@ function updateCharts(mixers) {
         }
         chart.update();
 
-        // 3. Actualizar la mini-tabla de historial (Aun estando ocultos)
         const tbody = document.getElementById(`history-${strId}`);
-        const statusBadge = m.status ? 
-            '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : 
-            '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary" style="font-size: 0.7rem;">Paro</span>';
-        
+        const statusBadge = m.status ? '<span class="badge bg-success bg-opacity-25 text-success border border-success" style="font-size: 0.7rem;">Activo</span>' : '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary" style="font-size: 0.7rem;">Paro</span>';
         let tempColor = isDanger ? 'text-danger fw-bold' : 'text-light';
         
-        const newRow = `
-            <tr>
-                <td class="${tempColor}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
-                <td>${statusBadge}</td>
-                <td class="text-end text-muted">${currentTime}</td>
-            </tr>
-        `;
-
+        const newRow = `<tr><td class="${tempColor}">${parseFloat(m.sensorValue).toFixed(1)}°C</td><td>${statusBadge}</td><td class="text-end text-muted">${currentTime}</td></tr>`;
         tbody.insertAdjacentHTML('afterbegin', newRow);
-        while(tbody.children.length > 10) {
-            tbody.removeChild(tbody.lastChild);
-        }
+        while(tbody.children.length > 10) tbody.removeChild(tbody.lastChild);
     });
 
     Object.keys(charts).forEach(id => {
@@ -247,7 +266,7 @@ function updateCharts(mixers) {
     });
 }
 
-// --- LÓGICA DE FÍSICA Y CONTROL ---
+// --- FÍSICA Y CONTROL ---
 async function simulatePhysicsAndSave() {
     for (let mixer of devicesCache) {
         let currentMsg = "Operación Normal";
@@ -264,12 +283,7 @@ async function simulatePhysicsAndSave() {
             await fetch(`${DEVICES_URL}/${mixer.id}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    value: mixer.sensorValue,
-                    deviceId: mixer.name,
-                    status: mixer.status,
-                    message: currentMsg
-                })
+                body: JSON.stringify({ value: mixer.sensorValue, deviceId: mixer.name, status: mixer.status, message: currentMsg })
             });
         } catch(e) {}
     }
@@ -279,16 +293,39 @@ async function toggleMixer(id, current) {
     const mixer = devicesCache.find(d => d.id == id);
     if(mixer) {
         mixer.status = !current;
-        const msg = mixer.status ? "Inicio manual" : "Paro manual";
         if(!useLocalMode) {
             await fetch(`${DEVICES_URL}/${id}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ status: mixer.status, message: msg })
+                method: 'PUT', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ status: mixer.status, message: mixer.status ? "Inicio manual" : "Paro manual" })
             });
         }
         renderControl(devicesCache);
     }
+}
+
+// NUEVA FUNCIÓN: PARO DE EMERGENCIA GLOBAL
+async function emergencyStopAll() {
+    if(!confirm("⚠️ ADVERTENCIA: ¿Estás seguro que deseas DETENER TODAS las máquinas?")) return;
+    
+    // Lo aplicamos en local inmediatamente para reflejar en la interfaz sin delay
+    devicesCache.forEach(m => {
+        if(m.status) m.status = false;
+    });
+    renderControl(devicesCache);
+    
+    // Si estamos online, mandamos apagar todo en la API
+    if(!useLocalMode) {
+        for (let mixer of devicesCache) {
+            try {
+                await fetch(`${DEVICES_URL}/${mixer.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ status: false, message: "🛑 PARO DE EMERGENCIA EJECUTADO" })
+                });
+            } catch(e) { console.error("Error al detener máquina:", mixer.id); }
+        }
+    }
+    alert("🛑 Paro de emergencia activado. Todas las máquinas han sido detenidas.");
 }
 
 // --- UTILIDADES ---
@@ -311,97 +348,45 @@ function simulatePhysicsLocal() {
     });
 }
 
-// --- EVENTOS DE FORMULARIO ---
+// --- EVENTOS Y FORMULARIOS ---
 document.getElementById('addMixerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const data = {
-        deviceId: document.getElementById('devName').value,
-        threshold: document.getElementById('devThreshold').value,
-        value: 20,
-        status: false,
-        message: "Dispositivo registrado"
-    };
+    const data = { deviceId: document.getElementById('devName').value, threshold: document.getElementById('devThreshold').value, value: 20, status: false, message: "Dispositivo registrado" };
     await fetch(DEVICES_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     document.getElementById('addMixerForm').reset();
     fetchDevices();
 });
 
 async function deleteDev(id) {
-    if(confirm("¿Eliminar dispositivo?")) {
-        await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' });
-        fetchDevices();
-    }
+    if(confirm("¿Eliminar dispositivo?")) { await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' }); fetchDevices(); }
 }
 
-// --- LÓGICA DE EDICIÓN (MODAL) ---
 function openEditModal(id) {
     const mixer = devicesCache.find(m => m.id === id);
     if (mixer) {
-        document.getElementById('editId').value = mixer.id;
-        document.getElementById('editName').value = mixer.name;
-        document.getElementById('editThreshold').value = mixer.threshold;
-        
-        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-        editModal.show();
+        document.getElementById('editId').value = mixer.id; document.getElementById('editName').value = mixer.name; document.getElementById('editThreshold').value = mixer.threshold;
+        new bootstrap.Modal(document.getElementById('editModal')).show();
     }
 }
 
 document.getElementById('editForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    const id = document.getElementById('editId').value;
-    const newName = document.getElementById('editName').value;
-    const newThreshold = document.getElementById('editThreshold').value;
-
+    const id = document.getElementById('editId').value, newName = document.getElementById('editName').value, newThreshold = document.getElementById('editThreshold').value;
     if (!useLocalMode) {
-        try {
-            await fetch(`${DEVICES_URL}/${id}`, { 
-                method: 'PUT', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ deviceId: newName, threshold: newThreshold }) 
-            });
-        } catch(error) {
-            console.error("Error al actualizar", error);
-        }
+        try { await fetch(`${DEVICES_URL}/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ deviceId: newName, threshold: newThreshold }) }); } catch(e) {}
     } else {
-        const mixer = devicesCache.find(m => m.id === id);
-        if (mixer) {
-            mixer.name = newName;
-            mixer.threshold = newThreshold;
-        }
+        const mixer = devicesCache.find(m => m.id === id); if (mixer) { mixer.name = newName; mixer.threshold = newThreshold; }
     }
-
-    const modalEl = document.getElementById('editModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    modalInstance.hide();
-
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
     fetchDevices();
 });
 
-// --- FUNCIÓN PARA EXPORTAR A CSV ---
 function exportToCSV() {
-    if (devicesCache.length === 0) {
-        alert("No hay datos para exportar.");
-        return;
-    }
-
-    let csvContent = "data:text/csv;charset=utf-8,\n";
-    csvContent += "ID,Dispositivo,Estado,Temperatura_Actual,Limite_Seguridad\n";
-
+    if (devicesCache.length === 0) { alert("No hay datos para exportar."); return; }
+    let csvContent = "data:text/csv;charset=utf-8,\nID,Dispositivo,Estado,Temperatura_Actual,Limite_Seguridad\n";
     devicesCache.forEach(m => {
-        const status = m.status ? "ACTIVO" : "PARO";
-        const temp = parseFloat(m.sensorValue).toFixed(2);
-        // Evitamos comas en los nombres para no romper el formato CSV
-        const safeName = m.name.replace(/,/g, ''); 
-        
-        csvContent += `${m.id},${safeName},${status},${temp},${m.threshold}\n`;
+        csvContent += `${m.id},${m.name.replace(/,/g, '')},${m.status ? "ACTIVO" : "PARO"},${parseFloat(m.sensorValue).toFixed(2)},${m.threshold}\n`;
     });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Reporte_IronMonitor.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", "Reporte_IronMonitor.csv");
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
