@@ -5,21 +5,23 @@ let devicesCache = [];
 let charts = {}; 
 const MAX_DATAPOINTS = 15; 
 let useLocalMode = false;
-let searchQuery = ""; 
 
-// Guardamos valores anteriores para calcular las flechas de tendencia (sube/baja)
+// Estado del Dashboard
+let searchQuery = ""; 
+let filterState = "all";
+let sortState = "id";
+let userRole = "operador"; // operador | supervisor
+let audioCtx = null;
 let lastValuesMap = {}; 
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchDevices();
     setInterval(mainLoop, 2000); 
 
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        searchQuery = e.target.value.toLowerCase();
-        renderControl(devicesCache);
-        renderAdmin(devicesCache);
-        updateCharts(devicesCache); 
-    });
+    // Listeners de la barra de herramientas
+    document.getElementById('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value.toLowerCase(); triggerRender(); });
+    document.getElementById('filterSelect').addEventListener('change', (e) => { filterState = e.target.value; triggerRender(); });
+    document.getElementById('sortSelect').addEventListener('change', (e) => { sortState = e.target.value; triggerRender(); });
 });
 
 async function mainLoop() {
@@ -32,11 +34,17 @@ async function mainLoop() {
         await fetchDevices();
     }
     
-    renderControl(devicesCache);
-    updateCharts(devicesCache); 
-    renderAdmin(devicesCache);
+    checkHealthAndAlerts();
+    triggerRender();
 }
 
+function triggerRender() {
+    renderControl(devicesCache);
+    updateCharts(devicesCache); // El monitor se mantiene intacto
+    if (userRole === 'supervisor') renderAdmin(devicesCache);
+}
+
+// --- RED Y DATOS ---
 async function fetchDevices() {
     try {
         const res = await fetch(DEVICES_URL);
@@ -46,16 +54,24 @@ async function fetchDevices() {
         if (rawData.length === 0) {
              if(!useLocalMode) devicesCache = getLocalData(); 
              useLocalMode = true; 
-             updateStatus('API VACÍA', 'warning');
+             updateStatus('API VACÍA - MODO LOCAL', 'warning');
         } else {
-            devicesCache = rawData.map(d => ({
-                id: d.id,
-                name: d.deviceId || "Sin Nombre",
-                sensorValue: parseFloat(d.value) || 20,
-                status: d.status !== undefined ? d.status : false, 
-                threshold: parseFloat(d.threshold) || 90,
-                message: d.message || "Operación Normal"
-            }));
+            const now = Date.now();
+            devicesCache = rawData.map(d => {
+                const existing = devicesCache.find(x => x.id === d.id);
+                return {
+                    id: d.id,
+                    name: d.deviceId || `Dispositivo ${d.id}`,
+                    // Agrupación por Líneas (Plant Layout)
+                    zone: parseInt(d.id) <= 3 ? 'Línea A - Mezcla' : 'Línea B - Envasado',
+                    sensorValue: parseFloat(d.value) || 20,
+                    status: d.status !== undefined ? d.status : false, 
+                    threshold: parseFloat(d.threshold) || 90,
+                    message: d.message || "Operación Normal",
+                    lastUpdate: now, // Watchdog tracker
+                    watchdogError: existing && (now - existing.lastUpdate > 6000) ? true : false
+                };
+            });
             useLocalMode = false;
             updateStatus('EN LÍNEA', 'success');
         }
@@ -66,86 +82,147 @@ async function fetchDevices() {
     }
 }
 
+// --- LÓGICA DE ALARMAS Y SALUD (Watchdog & Audio) ---
+function checkHealthAndAlerts() {
+    let playAlarm = false;
+    const now = Date.now();
+
+    devicesCache.forEach(m => {
+        // Watchdog check
+        if (!useLocalMode && (now - m.lastUpdate > 6000)) m.watchdogError = true;
+        
+        // Alertas de Audio si está crítico y activo
+        if (m.sensorValue >= m.threshold && m.status) {
+            playAlarm = true;
+        }
+    });
+
+    if (playAlarm) playBeep();
+}
+
+function playBeep() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.connect(audioCtx.destination);
+    osc.start(); 
+    osc.stop(audioCtx.currentTime + 0.1); 
+}
+
 // --- RENDERS ---
 function renderControl(mixers) {
     const grid = document.getElementById('mixerGrid');
     if(!grid) return;
     grid.innerHTML = '';
     
-    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    // 1. Filtrado
+    let filtered = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    if (filterState === 'active') filtered = filtered.filter(m => m.status);
+    if (filterState === 'alert') filtered = filtered.filter(m => m.sensorValue >= m.threshold * 0.8);
     
-    if (filteredMixers.length === 0) {
-        grid.innerHTML = '<div class="col-12 text-center mt-5 text-muted"><h5>No se encontraron coincidencias 🔍</h5></div>';
+    // 2. Ordenamiento
+    if (sortState === 'temp_desc') filtered.sort((a,b) => b.sensorValue - a.sensorValue);
+    else filtered.sort((a,b) => parseInt(a.id) - parseInt(b.id));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div class="col-12 text-center mt-5 text-contrast"><h5>No se encontraron equipos 🔍</h5></div>';
         return;
     }
 
     const nowStr = new Date().toLocaleTimeString('es-ES'); 
+    
+    // 3. Agrupación por Zonas (Plant Layout)
+    const zones = {};
+    filtered.forEach(m => { if (!zones[m.zone]) zones[m.zone] = []; zones[m.zone].push(m); });
 
-    filteredMixers.forEach(m => {
-        const temp = parseFloat(m.sensorValue).toFixed(0);
-        const isOn = m.status;
-        const isDanger = temp >= m.threshold;
-        
-        let borderClass = isOn ? 'border-on' : 'border-off';
-        let statusColor = isOn ? '#00ff9d' : '#666';
-        if (isDanger) { borderClass = 'border-danger'; statusColor = '#ff2a2a'; }
+    for (const [zoneName, machines] of Object.entries(zones)) {
+        // Render de Cabecera de Zona
+        grid.innerHTML += `<h4 class="mt-4 mb-3 border-bottom border-secondary pb-2" style="color: var(--neon-blue); font-family: 'Orbitron';">${zoneName}</h4>`;
+        let rowHtml = `<div class="row g-4">`;
 
-        let prevVal = lastValuesMap[m.id] !== undefined ? lastValuesMap[m.id] : m.sensorValue;
-        let trendIcon = '➖';
-        let trendClass = 'text-trend-stable';
-        
-        if (m.sensorValue > prevVal) {
-            trendIcon = '⬆️'; trendClass = 'text-trend-up';
-        } else if (m.sensorValue < prevVal) {
-            trendIcon = '⬇️'; trendClass = 'text-trend-down';
-        }
+        machines.forEach(m => {
+            const temp = parseFloat(m.sensorValue).toFixed(1);
+            const isOn = m.status;
+            
+            // Zonas Escalonadas (Warning vs Critical)
+            const isCritical = m.sensorValue >= m.threshold;
+            const isWarning = !isCritical && m.sensorValue >= (m.threshold * 0.8);
+            
+            let borderClass = isOn ? 'border-on' : 'border-off';
+            let statusColor = isOn ? 'var(--neon-green)' : '#666';
+            let statusText = isOn ? 'EN MARCHA' : 'DETENIDO';
 
-        let progressPercent = (m.sensorValue / m.threshold) * 100;
-        if (progressPercent > 100) progressPercent = 100;
-        
-        let progressColor = '#00d4ff'; 
-        if (progressPercent > 70) progressColor = '#ffc107'; 
-        if (progressPercent >= 90) progressColor = '#ff2a2a'; 
+            if (isWarning) { borderClass = 'border-warning'; statusColor = 'var(--neon-yellow)'; statusText = 'ADVERTENCIA'; }
+            if (isCritical) { borderClass = 'border-danger pulse-alert'; statusColor = 'var(--neon-red)'; statusText = 'CRÍTICO'; }
+            if (m.watchdogError) { borderClass = 'border-off'; statusColor = '#888'; statusText = 'ERR SENSOR'; }
 
-        const gearAnim = isOn ? 'spin-gear' : '';
-        const ledAnim = isOn ? 'led-blink' : '';
+            // Mantenimiento Predictivo / Cálculo de tiempo
+            let prevVal = lastValuesMap[m.id] !== undefined ? lastValuesMap[m.id] : m.sensorValue;
+            let rate = m.sensorValue - prevVal;
+            let trendIcon = '➖'; let trendClass = 'text-trend-stable';
+            let predictText = "";
 
-        grid.innerHTML += `
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 ${borderClass}">
-                <div class="card-body text-center position-relative">
-                    
-                    <div class="${ledAnim}" style="position: absolute; top: 15px; right: 15px; width: 12px; height: 12px; border-radius: 50%; background: ${statusColor};"></div>
-                    
-                    <h5 class="text-white mb-3 fw-bold">${m.name}</h5>
-                    
-                    <div class="mb-2 ${gearAnim}" style="color: ${isOn ? 'var(--neon-blue)' : '#444'}; font-size: 3.5rem;">⚙️</div>
-                    
-                    <div class="my-2 d-flex justify-content-center align-items-center" style="font-family: 'Orbitron'; font-size: 2.5rem; font-weight: bold; color: ${statusColor}">
-                        ${temp}°C <span class="${trendClass} ms-2" style="font-size: 1.5rem; font-family: 'Roboto';">${trendIcon}</span>
-                    </div>
+            if (rate > 0) {
+                trendIcon = '⬆️'; trendClass = 'text-trend-up';
+                if (isOn && !isCritical) {
+                    let cyclesLeft = (m.threshold - m.sensorValue) / rate;
+                    predictText = `Límite en ~${Math.round(cyclesLeft * 2)}s`;
+                }
+            } else if (rate < 0) {
+                trendIcon = '⬇️'; trendClass = 'text-trend-down';
+            }
 
-                    <div class="px-2 mb-4 text-start">
-                        <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem; margin-bottom: 2px;">
-                            <span>Actual</span>
-                            <span>Límite: ${m.threshold}°C</span>
+            // Barra de Progreso Dinámica
+            let progressPercent = Math.min((m.sensorValue / m.threshold) * 100, 100);
+            let progressColor = 'var(--neon-blue)'; 
+            if (progressPercent >= 80) progressColor = 'var(--neon-yellow)'; 
+            if (progressPercent >= 100) progressColor = 'var(--neon-red)'; 
+
+            const gearAnim = isOn && !m.watchdogError ? 'spin-gear' : '';
+            const ledAnim = isOn ? 'led-blink' : '';
+
+            rowHtml += `
+            <div class="col-md-4">
+                <div class="card h-100 ${borderClass}">
+                    <div class="card-body text-center position-relative">
+                        
+                        <div class="${ledAnim}" style="position: absolute; top: 15px; right: 15px; width: 12px; height: 12px; border-radius: 50%; background: ${statusColor};" title="${statusText}"></div>
+                        
+                        <h5 class="text-white mb-1 fw-bold">${m.name}</h5>
+                        <div style="font-size: 0.75rem; color: ${statusColor}; font-weight: bold;" class="mb-3">${statusText}</div>
+                        
+                        <div class="mb-2 ${gearAnim}" style="color: ${isOn ? 'var(--neon-blue)' : '#444'}; font-size: 3.5rem;">⚙️</div>
+                        
+                        <div class="my-2 d-flex justify-content-center align-items-center" style="font-family: 'Orbitron'; font-size: 2.5rem; font-weight: bold; color: ${statusColor}">
+                            ${temp}°C <span class="${trendClass} ms-2" style="font-size: 1.5rem; font-family: 'Roboto';">${trendIcon}</span>
                         </div>
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${progressColor};"></div>
+
+                        <div class="px-2 mb-4 text-start">
+                            <div class="d-flex justify-content-between text-contrast" style="font-size: 0.75rem; margin-bottom: 2px;">
+                                <span>Máx: ${m.threshold}°C</span>
+                                <span class="text-warning">${predictText}</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${progressColor};"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <button onclick="toggleMixer('${m.id}', ${isOn})" class="btn w-100 fw-bold ${isOn ? 'btn-outline-danger' : 'btn-outline-info'}">
-                        ${isOn ? '🛑 DETENER' : '⚡ INICIAR'}
-                    </button>
+                        <button onclick="safeToggleMixer('${m.id}', ${isOn})" class="btn w-100 fw-bold ${isOn ? 'btn-action-stop' : 'btn-action-start'}">
+                            ${isOn ? '🛑 DETENER EQUIPO' : '⚡ INICIAR EQUIPO'}
+                        </button>
 
-                    <div class="mt-3 text-secondary" style="font-size: 0.75rem;">
-                        ⏱️ Act: ${nowStr}
+                        <div class="mt-3 text-timestamp">
+                            ⏱️ Actualizado: ${nowStr}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>`;
-    });
+            </div>`;
+        });
+        rowHtml += `</div>`;
+        grid.innerHTML += rowHtml;
+    }
 }
 
 function renderAdmin(mixers) {
@@ -153,20 +230,23 @@ function renderAdmin(mixers) {
     if(!tbody) return;
     tbody.innerHTML = '';
     
-    const filteredMixers = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    let filtered = mixers.filter(m => m.name.toLowerCase().includes(searchQuery));
+    if (sortState === 'temp_desc') filtered.sort((a,b) => b.sensorValue - a.sensorValue);
+    else filtered.sort((a,b) => parseInt(a.id) - parseInt(b.id));
 
-    filteredMixers.forEach(m => {
+    filtered.forEach(m => {
         const statusLabel = m.status ? '<span class="text-success fw-bold" style="font-size: 0.8rem;">● ACTIVO</span>' : '<span class="text-secondary" style="font-size: 0.8rem;">● PARO</span>';
-        const isNearLimit = (m.threshold - m.sensorValue) <= 5 && m.status;
+        const isNearLimit = (m.threshold - m.sensorValue) <= (m.threshold * 0.2) && m.status;
         const tempClass = isNearLimit ? 'text-warning fw-bold pulse-alert' : 'text-light';
 
         tbody.innerHTML += `
         <tr>
-            <td class="text-light" style="font-size: 0.8rem;">#${m.id}</td>
+            <td class="text-contrast" style="font-size: 0.8rem;">#${m.id}</td>
+            <td class="text-contrast">${m.zone}</td>
             <td class="fw-bold text-light">${m.name}</td>
-            <td>${statusLabel}</td>
+            <td>${m.watchdogError ? '<span class="text-danger">ERR CONEX</span>' : statusLabel}</td>
             <td class="${tempClass}">${parseFloat(m.sensorValue).toFixed(1)}°C</td>
-            <td class="text-light">${m.threshold}°C</td>
+            <td class="text-contrast">${m.threshold}°C</td>
             <td>
                 <div class="btn-group">
                     <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info me-2" title="Editar">✏️</button>
@@ -177,6 +257,9 @@ function renderAdmin(mixers) {
     });
 }
 
+// ==========================================
+// PESTAÑA MONITOR (Intacta, se copia igual)
+// ==========================================
 function updateCharts(mixers) {
     const container = document.getElementById('chartsContainer');
     if(!container) return;
@@ -278,12 +361,14 @@ function updateCharts(mixers) {
         }
     });
 }
+// ==========================================
+
 
 // --- FÍSICA Y CONTROL ---
 async function simulatePhysicsAndSave() {
     for (let mixer of devicesCache) {
         let currentMsg = "Operación Normal";
-        if (mixer.status) mixer.sensorValue += 2.5;
+        if (mixer.status) mixer.sensorValue += (Math.random() * 1.5 + 1); // Variabilidad
         else mixer.sensorValue -= 1.5;
         if (mixer.sensorValue < 20) mixer.sensorValue = 20;
 
@@ -302,7 +387,12 @@ async function simulatePhysicsAndSave() {
     }
 }
 
-async function toggleMixer(id, current) {
+// Fricción Positiva
+async function safeToggleMixer(id, current) {
+    if (!current && !confirm('⚠️ ¿Estás seguro que deseas INICIAR este equipo? Asegúrate que la línea esté despejada.')) {
+        return; 
+    }
+    
     const mixer = devicesCache.find(d => d.id == id);
     if(mixer) {
         mixer.status = !current;
@@ -312,18 +402,18 @@ async function toggleMixer(id, current) {
                 body: JSON.stringify({ status: mixer.status, message: mixer.status ? "Inicio manual" : "Paro manual" })
             });
         }
-        renderControl(devicesCache);
+        triggerRender();
     }
 }
 
 // PARO DE EMERGENCIA GLOBAL
 async function emergencyStopAll() {
-    if(!confirm("⚠️ ADVERTENCIA: ¿Estás seguro que deseas DETENER TODAS las máquinas?")) return;
+    if(!confirm("⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro que deseas DETENER TODAS las máquinas de la planta?")) return;
     
     devicesCache.forEach(m => {
         if(m.status) m.status = false;
     });
-    renderControl(devicesCache);
+    triggerRender();
     
     if(!useLocalMode) {
         for (let mixer of devicesCache) {
@@ -333,7 +423,7 @@ async function emergencyStopAll() {
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ status: false, message: "🛑 PARO DE EMERGENCIA EJECUTADO" })
                 });
-            } catch(e) { console.error("Error al detener máquina:", mixer.id); }
+            } catch(e) {}
         }
     }
     alert("🛑 Paro de emergencia activado. Todas las máquinas han sido detenidas.");
@@ -348,7 +438,10 @@ function updateStatus(text, type) {
 }
 
 function getLocalData() {
-    return [{ id: "1", name: "Batidora Demo", status: false, sensorValue: 20, threshold: 80 }];
+    return [
+        { id: "1", name: "Batidora Demo A1", status: false, sensorValue: 20, threshold: 80, zone: 'Línea A - Mezcla' },
+        { id: "4", name: "Envasadora B1", status: false, sensorValue: 20, threshold: 90, zone: 'Línea B - Envasado' }
+    ];
 }
 
 function simulatePhysicsLocal() {
@@ -356,12 +449,38 @@ function simulatePhysicsLocal() {
         if (mixer.status) mixer.sensorValue += 2;
         else mixer.sensorValue -= 1;
         if (mixer.sensorValue < 20) mixer.sensorValue = 20;
+        mixer.lastUpdate = Date.now();
     });
 }
 
-// --- EVENTOS Y FORMULARIOS ---
+// --- ROLES Y PERMISOS ---
+function toggleRole() {
+    if (userRole === 'operador') {
+        const pin = prompt("Ingrese PIN de Supervisor (Prueba con: 1234):");
+        if (pin === "1234") {
+            userRole = 'supervisor';
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            document.getElementById('roleBtn').innerHTML = "👑 Modo: Supervisor";
+            document.getElementById('roleBtn').className = "btn btn-sm btn-warning fw-bold text-dark";
+        } else {
+            alert("PIN Incorrecto. Acceso Denegado.");
+        }
+    } else {
+        userRole = 'operador';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        document.getElementById('roleBtn').innerHTML = "👤 Modo: Operador";
+        document.getElementById('roleBtn').className = "btn btn-sm btn-outline-secondary fw-bold";
+        // Si estaba en la pestaña admin, lo regresamos a control
+        const controlTab = new bootstrap.Tab(document.querySelector('button[data-bs-target="#panel-control"]'));
+        controlTab.show();
+    }
+    triggerRender();
+}
+
+// --- EVENTOS Y FORMULARIOS (ADMIN) ---
 document.getElementById('addMixerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if(userRole !== 'supervisor') return alert("Permisos insuficientes");
     const data = { deviceId: document.getElementById('devName').value, threshold: document.getElementById('devThreshold').value, value: 20, status: false, message: "Dispositivo registrado" };
     await fetch(DEVICES_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     document.getElementById('addMixerForm').reset();
@@ -369,10 +488,15 @@ document.getElementById('addMixerForm').addEventListener('submit', async (e) => 
 });
 
 async function deleteDev(id) {
-    if(confirm("¿Eliminar dispositivo?")) { await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' }); fetchDevices(); }
+    if(userRole !== 'supervisor') return alert("Permisos insuficientes");
+    if(confirm("¿Eliminar dispositivo de forma permanente?")) { 
+        await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' }); 
+        fetchDevices(); 
+    }
 }
 
 function openEditModal(id) {
+    if(userRole !== 'supervisor') return alert("Permisos insuficientes");
     const mixer = devicesCache.find(m => m.id === id);
     if (mixer) {
         document.getElementById('editId').value = mixer.id; document.getElementById('editName').value = mixer.name; document.getElementById('editThreshold').value = mixer.threshold;
@@ -392,12 +516,27 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
     fetchDevices();
 });
 
-function exportToCSV() {
+// Reportes (CSV y Shift)
+function exportToCSV(type) {
     if (devicesCache.length === 0) { alert("No hay datos para exportar."); return; }
-    let csvContent = "data:text/csv;charset=utf-8,\nID,Dispositivo,Estado,Temperatura_Actual,Limite_Seguridad\n";
+    
+    let fileName = type === 'turn' ? "Reporte_Fin_De_Turno.csv" : "Data_Completa_IronMonitor.csv";
+    const dateStr = new Date().toLocaleString('es-ES');
+    
+    let csvContent = "data:text/csv;charset=utf-8,\n";
+    if(type === 'turn') csvContent += `REPORTE DE TURNO - GENERADO: ${dateStr}\n\n`;
+    
+    csvContent += "ID,Zona,Dispositivo,Estado,Temperatura_Actual,Limite_Seguridad,Alerta\n";
+    
     devicesCache.forEach(m => {
-        csvContent += `${m.id},${m.name.replace(/,/g, '')},${m.status ? "ACTIVO" : "PARO"},${parseFloat(m.sensorValue).toFixed(2)},${m.threshold}\n`;
+        const isAlert = m.sensorValue >= (m.threshold * 0.8) ? "SI" : "NO";
+        csvContent += `${m.id},${m.zone},${m.name.replace(/,/g, '')},${m.status ? "ACTIVO" : "PARO"},${parseFloat(m.sensorValue).toFixed(2)},${m.threshold},${isAlert}\n`;
     });
-    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", "Reporte_IronMonitor.csv");
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    
+    const link = document.createElement("a"); 
+    link.setAttribute("href", encodeURI(csvContent)); 
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
 }

@@ -2,22 +2,36 @@
 :root {
     --bg-dark: #121212;
     --card-bg: #1e1e2d;
+    --panel-bg: #161622;
     --neon-blue: #00d4ff;
     --neon-green: #00ff9d;
     --neon-red: #ff2a2a;
+    --neon-yellow: #ffcc00;
+    --text-high-contrast: #e8e8e8;
+    --text-mid-contrast: #b5b5b5;
 }
 
 body {
     background-color: var(--bg-dark);
-    color: #e0e0e0;
+    color: var(--text-high-contrast);
     font-family: 'Roboto', sans-serif;
 }
 
-/* --- NAVBAR --- */
+/* --- UTILIDADES --- */
+.bg-dark-panel { background-color: var(--panel-bg); border: 1px solid #333; }
+.text-contrast { color: var(--text-mid-contrast) !important; font-weight: 500; }
+.text-timestamp { color: var(--neon-blue) !important; font-weight: 700; font-family: monospace; font-size: 0.9rem; }
+.text-warning { color: var(--neon-yellow) !important; text-shadow: 0 0 5px rgba(255, 204, 0, 0.4); }
+
+/* --- NAVBAR Y PESTAÑAS --- */
 .navbar { background-color: #1a1a25 !important; border-bottom: 1px solid #333; }
 .brand-tech { font-family: 'Orbitron', sans-serif; letter-spacing: 2px; color: var(--neon-blue); }
 
-/* --- CARDS --- */
+.nav-pills .nav-link { color: var(--text-mid-contrast); transition: 0.3s; }
+.nav-pills .nav-link:hover { color: white; }
+.nav-pills .nav-link.active { background-color: var(--neon-blue); color: #000; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); }
+
+/* --- CARDS Y BORDES (Estados) --- */
 .card {
     background-color: var(--card-bg);
     border: 1px solid #333;
@@ -26,11 +40,12 @@ body {
 }
 .card:hover { transform: translateY(-3px); }
 
-.border-on { border-color: var(--neon-green) !important; box-shadow: 0 0 15px rgba(0, 255, 157, 0.2); }
+.border-on { border-color: var(--neon-green) !important; box-shadow: 0 0 15px rgba(0, 255, 157, 0.15); }
 .border-off { border-color: #444 !important; }
+.border-warning { border-color: var(--neon-yellow) !important; box-shadow: 0 0 15px rgba(255, 204, 0, 0.2); }
 .border-danger { border-color: var(--neon-red) !important; box-shadow: 0 0 15px rgba(255, 42, 42, 0.4); }
 
-/* --- BOTÓN EMERGENCIA --- */
+/* --- BOTONES DE CONTROL --- */
 .btn-emergency {
     background-color: transparent;
     color: var(--neon-red);
@@ -38,43 +53,39 @@ body {
     border-radius: 30px;
     transition: 0.3s;
 }
-.btn-emergency:hover {
-    background-color: var(--neon-red);
-    color: white;
-    box-shadow: 0 0 15px rgba(255, 42, 42, 0.6);
-}
+.btn-emergency:hover { background-color: var(--neon-red); color: white; box-shadow: 0 0 15px rgba(255, 42, 42, 0.6); }
+
+/* Colores de acción clarificados */
+.btn-action-start { background-color: #0b3d2c; color: var(--neon-green); border: 1px solid var(--neon-green); }
+.btn-action-start:hover { background-color: var(--neon-green); color: black; }
+.btn-action-stop { background-color: #3d0b0b; color: var(--neon-red); border: 1px solid var(--neon-red); }
+.btn-action-stop:hover { background-color: var(--neon-red); color: white; }
 
 /* --- ANIMACIONES --- */
 @keyframes spin { 100% { transform: rotate(360deg); } }
-.spin-gear {
-    display: inline-block;
-    animation: spin 3s linear infinite;
-    text-shadow: 0 0 10px var(--neon-blue);
-}
+.spin-gear { display: inline-block; animation: spin 3s linear infinite; text-shadow: 0 0 10px var(--neon-blue); }
 
-@keyframes blink {
-    0% { opacity: 1; box-shadow: 0 0 10px var(--neon-green); }
-    50% { opacity: 0.3; box-shadow: none; }
-    100% { opacity: 1; box-shadow: 0 0 10px var(--neon-green); }
-}
+@keyframes blink { 0%, 100% { opacity: 1; box-shadow: 0 0 10px currentColor; } 50% { opacity: 0.3; box-shadow: none; } }
 .led-blink { animation: blink 1.5s infinite; }
 
-/* --- BARRAS DE PROGRESO Y TEXTOS --- */
-.progress-container { background-color: #121212; border-radius: 10px; overflow: hidden; height: 8px; margin-top: 5px; border: 1px solid #333;}
+.pulse-alert { animation: pulse-warning 0.8s infinite alternate; }
+@keyframes pulse-warning { 0% { opacity: 1; text-shadow: 0 0 8px var(--neon-red); color: var(--neon-red) !important;} 100% { opacity: 0.6; } }
+
+/* --- BARRAS DE PROGRESO Y TEXTOS TENDENCIA --- */
+.progress-container { background-color: #121212; border-radius: 10px; overflow: hidden; height: 10px; margin-top: 5px; border: 1px solid #444;}
 .progress-bar { transition: width 0.5s ease-in-out, background-color 0.5s; height: 100%; }
 
 .text-trend-up { color: var(--neon-red); text-shadow: 0 0 5px var(--neon-red); }
 .text-trend-down { color: var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
-.text-trend-stable { color: #555; }
+.text-trend-stable { color: var(--text-mid-contrast); }
 
 /* --- FORMULARIOS Y TABLAS --- */
-.nav-pills .nav-link { color: #888; }
-.nav-pills .nav-link.active { background-color: var(--neon-blue); color: #000; font-weight: bold; }
-.form-control { background-color: #2a2a35; border: 1px solid #444; color: white; }
-.form-control:focus { background-color: #333; color: white; border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 212, 255, 0.3); }
+.filter-input { background-color: #1a1a25; border: 1px solid #444; color: var(--text-high-contrast); border-radius: 30px; padding-left: 20px;}
+.filter-input:focus { background-color: #222; border-color: var(--neon-blue); color: white; box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+#searchInput { padding-left: 45px; }
 
-/* Ajustes de Tabla para que no se pierda el texto oscuro */
-.table-dark-custom { color: #f8f9fa !important; font-size: 0.9rem; }
-.table-dark-custom td, .table-dark-custom th { border-color: #333; padding: 12px; vertical-align: middle; background-color: transparent !important; color: inherit; }
-.pulse-alert { animation: pulse-warning 1s infinite alternate; }
-@keyframes pulse-warning { 0% { opacity: 1; text-shadow: 0 0 5px var(--neon-red); color: var(--neon-red) !important;} 100% { opacity: 0.7; } }
+.form-control-dark { background-color: #2a2a35; border: 1px solid #555; color: white; }
+.form-control-dark:focus { background-color: #333; color: white; border-color: var(--neon-blue); }
+
+.table-dark-custom { color: var(--text-high-contrast) !important; font-size: 0.95rem; }
+.table-dark-custom td, .table-dark-custom th { border-color: #444; padding: 12px; vertical-align: middle; background-color: transparent !important; color: inherit; }
