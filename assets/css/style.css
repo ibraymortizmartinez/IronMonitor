@@ -7,6 +7,7 @@
     --neon-green: #00ff9d;
     --neon-red: #ff2a2a;
     --neon-yellow: #ffcc00;
+    --neon-orange: #ff8c00;
     --text-high-contrast: #e8e8e8;
     --text-mid-contrast: #b5b5b5;
 }
@@ -29,14 +30,15 @@ body {
 
 .nav-pills .nav-link { color: var(--text-mid-contrast); transition: 0.3s; }
 .nav-pills .nav-link:hover { color: white; }
-.nav-pills .nav-link.active { background-color: var(--neon-blue); color: #000; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); }
+.nav-pills .nav-link.active { background-color: var(--neon-blue) !important; color: #000 !important; box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); }
 
-/* --- CARDS Y BORDES (Estados) --- */
+/* --- CARDS Y BORDES (Forzando color oscuro) --- */
 .card {
-    background-color: var(--card-bg);
+    background-color: var(--card-bg) !important;
     border: 1px solid #333;
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     transition: transform 0.3s, border-color 0.3s;
+    color: var(--text-high-contrast) !important;
 }
 .card:hover { transform: translateY(-3px); }
 
@@ -44,6 +46,14 @@ body {
 .border-off { border-color: #444 !important; }
 .border-warning { border-color: var(--neon-yellow) !important; box-shadow: 0 0 15px rgba(255, 204, 0, 0.2); }
 .border-danger { border-color: var(--neon-red) !important; box-shadow: 0 0 15px rgba(255, 42, 42, 0.4); }
+
+/* Alertas Dinámicas Extra */
+.border-pre-warning { border-color: var(--neon-orange) !important; box-shadow: 0 0 15px rgba(255, 140, 0, 0.3); }
+.pulse-warning-card { animation: pulse-orange 1s infinite alternate; }
+@keyframes pulse-orange { 
+    0% { box-shadow: 0 0 5px var(--neon-orange); border-color: var(--neon-orange); } 
+    100% { box-shadow: 0 0 20px var(--neon-orange); border-color: transparent; } 
+}
 
 /* --- BOTONES DE CONTROL --- */
 .btn-emergency {
@@ -55,7 +65,6 @@ body {
 }
 .btn-emergency:hover { background-color: var(--neon-red); color: white; box-shadow: 0 0 15px rgba(255, 42, 42, 0.6); }
 
-/* Colores de acción clarificados */
 .btn-action-start { background-color: #0b3d2c; color: var(--neon-green); border: 1px solid var(--neon-green); }
 .btn-action-start:hover { background-color: var(--neon-green); color: black; }
 .btn-action-stop { background-color: #3d0b0b; color: var(--neon-red); border: 1px solid var(--neon-red); }
@@ -79,7 +88,7 @@ body {
 .text-trend-down { color: var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
 .text-trend-stable { color: var(--text-mid-contrast); }
 
-/* --- FORMULARIOS Y TABLAS --- */
+/* --- FORMULARIOS --- */
 .filter-input { background-color: #1a1a25; border: 1px solid #444; color: var(--text-high-contrast); border-radius: 30px; padding-left: 20px;}
 .filter-input:focus { background-color: #222; border-color: var(--neon-blue); color: white; box-shadow: 0 0 10px rgba(0,212,255,0.3); }
 #searchInput { padding-left: 45px; }
@@ -87,5 +96,61 @@ body {
 .form-control-dark { background-color: #2a2a35; border: 1px solid #555; color: white; }
 .form-control-dark:focus { background-color: #333; color: white; border-color: var(--neon-blue); }
 
-.table-dark-custom { color: var(--text-high-contrast) !important; font-size: 0.95rem; }
-.table-dark-custom td, .table-dark-custom th { border-color: #444; padding: 12px; vertical-align: middle; background-color: transparent !important; color: inherit; }
+/* =========================================
+   NUEVAS CLASES DEL MONITOR (TEMA OSCURO)
+   ========================================= */
+
+/* Panel de KPIs */
+.kpi-panel { 
+    background-color: var(--panel-bg) !important; 
+    border-radius: 6px; 
+    padding: 10px; 
+    margin-bottom: 15px; 
+    border: 1px solid #333; 
+}
+.kpi-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.kpi-label { font-size: 0.7rem; color: var(--text-mid-contrast); text-transform: uppercase; }
+.kpi-val { font-size: 1rem; font-weight: bold; color: var(--text-high-contrast); font-family: 'Orbitron', sans-serif; }
+
+/* Tabla del Monitor */
+.monitor-table-wrapper { 
+    background-color: var(--panel-bg) !important; 
+    border-radius: 8px; 
+    border: 1px solid #333; 
+    overflow: hidden; 
+}
+.table-monitor { 
+    width: 100%; 
+    color: var(--text-high-contrast) !important; 
+    font-size: 0.85rem; 
+    margin-bottom: 0; 
+}
+.table-monitor th { 
+    background-color: #1a1a25 !important; 
+    color: var(--neon-blue) !important; 
+    padding: 10px; 
+    font-weight: 600; 
+    border-bottom: 2px solid #333 !important; 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+}
+.table-monitor td { 
+    padding: 10px; 
+    border-bottom: 1px solid #2a2a35 !important; 
+    vertical-align: middle; 
+    background-color: transparent !important;
+    color: var(--text-high-contrast) !important;
+}
+.table-monitor tbody tr:hover td { 
+    background-color: rgba(255,255,255,0.05) !important; 
+}
+
+/* Badges de Estatus */
+.badge-status { padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; }
+.badge-operando { background-color: rgba(0, 255, 157, 0.1); color: var(--neon-green); border: 1px solid var(--neon-green); }
+.badge-paro { background-color: rgba(255, 42, 42, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); }
+.badge-advertencia { background-color: rgba(255, 140, 0, 0.1); color: var(--neon-orange); border: 1px solid var(--neon-orange); }
+
+/* Control de Visibilidad Supervisor */
+.supervisor-only { display: none; }
+body.supervisor-mode .supervisor-only { display: inline-block; }
