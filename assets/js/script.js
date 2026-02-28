@@ -6,6 +6,11 @@ let charts = {};
 const MAX_DATAPOINTS = 15; 
 let useLocalMode = false;
 
+document.addEventListener('DOMContentLoaded', () => {
+    setInterval(mainLoop, 2000);
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+});
+
 // Estado del Dashboard
 let searchQuery = ""; 
 let filterState = "all";

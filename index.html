@@ -51,15 +51,17 @@
                 <option value="temp_desc">🔥 Mayor Temp</option>
             </select>
         </div>
-        
-        <div class="col-md-3"></div>
+            <div class="col-md-2 text-end">
+                <div id="clock" class="text-timestamp" style="font-size: 1.2rem;">00:00:00</div>
+            </div>
 
-        <div class="col-md-2">
+             <div class="col-md-2">
             <button onclick="emergencyStopAll()" class="btn w-100 fw-bold btn-emergency shadow-lg">
                 🛑 PARO GENERAL
-            </button>
+            </button>          
         </div>
     </div>
+
 
     <ul class="nav nav-pills mb-4 justify-content-center" id="pills-tab" role="tablist">
         <li class="nav-item">
@@ -99,7 +101,7 @@
                 <form id="addMixerForm" class="row g-2 mb-4">
                     <div class="col-md-5">
                         <input type="text" class="form-control form-control-dark" id="devName" placeholder="Nombre (Ej. Máquina X)" required>
-                    </div>
+                      </div>
                     <div class="col-md-4">
                         <input type="number" class="form-control form-control-dark" id="devThreshold" placeholder="Límite Temp (°C)" required>
                     </div>
@@ -108,8 +110,8 @@
                     </div>
                 </form>
                 
-                <div class="table-responsive">
-                    <table class="table table-dark-custom text-light">
+                <div class="table-monitor th">
+                    <table class="table-monitor th">
                         <thead class="text-contrast" style="border-bottom: 2px solid var(--neon-blue);">
                             <tr>
                                 <th>ID</th>
@@ -125,14 +127,7 @@
                     </table>
                 </div>
                 
-                <div class="mt-4 d-flex justify-content-end gap-2">
-                    <button onclick="exportToCSV('turn')" class="btn btn-primary fw-bold">
-                        📋 Descargar Reporte de Turno
-                    </button>
-                    <button onclick="exportToCSV('full')" class="btn btn-outline-secondary">
-                        📥 Exportar Todo (CSV)
-                    </button>
-                </div>
+                
             </div>
         </div>
     </div>
@@ -140,7 +135,7 @@
 
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: var(--card-bg); color: white; border: 1px solid var(--neon-blue);">
+        <div class="modal-content" style="background-color: var(--card-bg); color: rgb(250, 8, 8); border: 1px solid var(--neon-blue);">
             <div class="modal-header" style="border-bottom: 1px solid #333;">
                 <h5 class="modal-title brand-tech" style="color: var(--neon-blue);">✏️ Editar Máquina</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
