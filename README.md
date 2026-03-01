@@ -88,8 +88,8 @@ El sistema requiere un endpoint llamado `logs`. El esquema de datos debe ser el 
 ---
 
 ## ✒️ Autor
-* **Desarrollo:** [Tu Nombre]
-* **Institución:** [Tu Universidad/Empresa]
+* **Desarrollo:** ANGEL IBRAYM ORTIZ MARTINEZ
+* **Institución:** INSTITUTO TECNOLÓGICO CAMPUS PACHUCA
 * **Propósito:** Proyecto de Instrumentación Virtual / SCADA
 
 ---
