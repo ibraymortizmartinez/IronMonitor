@@ -1,53 +1,95 @@
-# ⚡ IronMonitor - Industrial IIoT Dashboard
+# 🎛️ IronMonitor SCADA v3.0
+> **Sistema de Control de Estanqueidad y Telemetría Industrial**
 
-**IronMonitor** es una plataforma web de monitoreo y control diseñada para equipos industriales (como máquinas de vacío o batidoras de alto rendimiento). Este proyecto permite visualizar en tiempo real el estatus y la temperatura de múltiples dispositivos, aplicando conceptos clave de la Industria 4.0, interfaces HMI (Human-Machine Interface) y el Mantenimiento Predictivo.
+![Status](https://img.shields.io/badge/Status-Operativo-brightgreen?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.0.1--Stable-blue?style=for-the-badge)
+![Tech](https://img.shields.io/badge/Tech-JavaScript_ES6-yellow?style=for-the-badge&logo=javascript)
 
-Desarrollado como proyecto para la materia de **Implementación de Soluciones IoT** (9º Semestre).
-**Autor:** Angel Ibraym Ortiz Martínez.
+## 📋 Descripción del Proyecto
+IronMonitor es una solución HMI (Human-Machine Interface) desarrollada para el monitoreo y control de cámaras de prueba de estanqueidad. Permite supervisar en tiempo real variables críticas como la **presión atmosférica/vacío**, el **volumen de agua** y los **tiempos de retención**, asegurando la calidad en líneas de producción de botellas o envases.
 
----
-
-## 🚀 Características Principales
-
-* **Interfaz HMI/SCADA Avanzada:** Diseño UI/UX Dark Mode con feedback visual en tiempo real, incluyendo engranes giratorios en máquinas activas, LEDs de estado parpadeantes, barras de progreso térmicas con indicadores de tendencia (⬆️⬇️) y timestamps de última actualización.
-* **🛑 Paro General (Global Kill Switch):** Botón de emergencia de acceso rápido en la barra superior para detener simultáneamente todas las máquinas de la planta con un solo clic.
-* **Búsqueda Dinámica Global:** Barra de búsqueda optimizada que filtra dispositivos en tiempo real a través de las tres pestañas (Control, Monitor y Admin).
-* **Mantenimiento Predictivo (Safe-Stop):** Sistema de seguridad automatizado que fuerza un paro de emergencia si una máquina supera su umbral térmico máximo, registrando el evento.
-* **Monitoreo Térmico Dinámico:** Gráficas en vivo con *Chart.js* para paneles individuales, que incluyen una **línea de referencia roja** estática para visualizar el límite de temperatura de un vistazo.
-* **Arquitectura de 3 Paneles:**
-    * **🎛️ Control:** Tarjetas interactivas con animaciones para encendido/apagado remoto y evaluación rápida de estado.
-    * **📈 Monitor:** Vista analítica con gráficas de temperatura y tablas de historial de alto contraste con los últimos 10 registros.
-    * **⚙️ Admin:** Panel de gestión para registrar nuevas máquinas, editar límites térmicos, eliminar equipos y **Exportar Reportes a CSV**.
-* **Simulador Físico (Fallback Mode):** Modo "Offline" automático que simula la termodinámica de las máquinas si falla la conexión a la API REST.
+El sistema simula un entorno físico industrial real, gestionando ciclos de llenado, vacío y despresurización con una precisión de milisegundos y sincronización en la nube.
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## ✨ Características Principales
 
-* **Frontend:** HTML5, CSS3, JavaScript (Vanilla ES6+).
-* **Framework CSS:** Bootstrap 5 (Customized for Dark Mode).
-* **Visualización de Datos:** Chart.js.
-* **Backend / API:** MockAPI.io (Simulación de Endpoints RESTful).
-* **Tipografía:** Orbitron & Roboto (Google Fonts).
+### 🔴 Control de Seguridad Industrial
+- **Paro de Emergencia Global:** Bloqueo instantáneo de todos los procesos físicos mediante el botón SOS o la tecla `Espacio`.
+- **Rearme de Seguridad:** Solo el personal con rol de **Supervisor** puede rearmar el sistema tras una emergencia.
+
+### 🧪 Ciclo de Prueba Automatizado
+1. **Llenado (Filling):** Control de flujo de agua con límites configurables.
+2. **Vacío (Vacuuming):** Extracción de aire hasta alcanzar el setpoint de presión negativa.
+3. **Retención (Holding):** Temporizador de precisión para la detección de micro-fugas.
+4. **Despresurización:** Retorno seguro a la presión atmosférica.
+
+### 📊 Gestión de Datos y Calidad
+- **Panel de Telemetría:** Gráficas en tiempo real (Chart.js) para cada cámara.
+- **Inspección de 12 Unidades:** Rejilla interactiva para marcar fallas por burbujeo en cada posición.
+- **Exportación CSV:** Generación de reportes detallados para auditorías de calidad.
 
 ---
 
-## 📂 Estructura del Proyecto
+## 🛠️ Stack Tecnológico
+- **Frontend:** HTML5, CSS3 (Custom Neon Styles), JavaScript (Módulos ES6).
+- **Framework UI:** Bootstrap 5.
+- **Gráficas:** Chart.js.
+- **Backend/API:** MockAPI (RESTful API).
+- **Audio:** Web Audio API para alarmas industriales.
 
-Para que la interfaz visualice correctamente los iconos personalizados y hojas de estilo, el proyecto debe mantener la siguiente estructura de carpetas:
+---
 
-```text
-IronMonitor/
-├── index.html
-├── README.md
-└── assets/
-    ├── css/
-    │   └── style.css
-    ├── js/
-    │   └── script.js
-    └── img/
-        ├── favIcon.png
-        ├── icon-buscar.png
-        ├── icon-control.png
-        ├── icon-monitor.png
-        └── icon-registro.png
+## ⚙️ Configuración del Entorno
+
+### 1. Backend (MockAPI)
+El sistema requiere un endpoint llamado `logs`. El esquema de datos debe ser el siguiente:
+
+| Campo | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `Nombre` | String | Identificador de la máquina |
+| `Estado` | Boolean | Estado de marcha/paro |
+| `phase` | String | Fase actual (IDLE, FILLING, VACUUMING, etc.) |
+| `water` | Number | Nivel actual de agua en Litros |
+| `pressure` | Number | Presión actual en mbar |
+| `timer` | Number | Segundos transcurridos en retención |
+| `Alarma` | Boolean | Indicador de fallo activo |
+
+### 2. Instalación Local
+1. Clona este repositorio.
+2. Abre `index.html` en un navegador moderno.
+3. El sistema detectará automáticamente si la API está en línea; de lo contrario, activará el **Modo Demo (Offline)**.
+
+---
+
+## 🔐 Roles y Acceso
+- **Operador:** Puede iniciar ciclos, marcar fallas en botellas y ver gráficas.
+- **Supervisor:** - **Contraseña por defecto:** `admin123`
+    - **Permisos:** Editar parámetros de cámaras, eliminar equipos, rearmar sistema tras paro y exportar reportes.
+
+---
+
+## ⌨️ Atajos de Teclado
+| Tecla | Acción |
+| :--- | :--- |
+| `Barra Espaciadora` | **PARO DE EMERGENCIA** |
+| `F5` | Sincronización forzada con servidor |
+
+---
+
+## 📸 Vista de la Interfaz
+*La interfaz utiliza un diseño Dark-Mode con acentos neón para facilitar la lectura en entornos industriales (SCADA moderno).*
+
+- **Azul Neon:** Agua / Llenado.
+- **Aqua:** Vacío / Presión.
+- **Amarillo/Naranja:** Alertas / Fase de Retención.
+- **Rojo:** Paro de Emergencia / Falla de botella.
+
+---
+
+## ✒️ Autor
+* **Desarrollo:** [Tu Nombre]
+* **Institución:** [Tu Universidad/Empresa]
+* **Propósito:** Proyecto de Instrumentación Virtual / SCADA
+
+---
