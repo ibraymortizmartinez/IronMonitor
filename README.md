@@ -1,4 +1,4 @@
-# 🎛️ IronMonitor SCADA v3.0
+# 🎛️ IronMonitor
 > **Sistema de Control de Estanqueidad y Telemetría Industrial**
 
 ![Status](https://img.shields.io/badge/Status-Operativo-brightgreen?style=for-the-badge)
