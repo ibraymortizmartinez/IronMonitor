@@ -866,25 +866,38 @@ function updateCharts(mixers) {
     });
 }
 
-// Función para mostrar el Manual
+// Función para mostrar el Manual Estandarizado
 window.verManual = function() {
-    logEvent("SISTEMA", "Accediendo a Manual de Usuario", "text-info");
-    alert("MANUAL DE OPERACIÓN IRONMONITOR v3.0\n\n" +
-          "1. Llenado: Presione 'LLENAR' para iniciar flujo de agua.\n" +
-          "2. Vacío: Solo disponible cuando el tanque está lleno.\n" +
-          "3. Despresurización: Use en caso de finalizar ciclo o mantenimiento.\n" +
-          "4. Paro: Barra espaciadora para emergencia.");
+    logEvent("SISTEMA", "Accediendo a Manual de Operación (POE)", "text-info");
+    alert(
+        "📋 MANUAL DE OPERACIÓN ESTANDARIZADO - IRONMONITOR v3.0\n" +
+        "PROCEDIMIENTO DE PRUEBA DE ESTANQUEIDAD (Cierres Elásticos / Corchos)\n\n" +
+        "Fase 1: PREPARACIÓN Y CARGA\n" +
+        "• Verifique que el nivel de fluido cubra la muestra al menos 2.5 cm por encima del tapón.\n" +
+        "• Asegure la escotilla de la cámara de acrílico antes de iniciar.\n\n" +
+        "Fase 2: CICLO DE VACÍO (DEPRESSURIZING)\n" +
+        "• Al accionar el arranque, el sistema extraerá la atmósfera hasta alcanzar el setpoint automático de 500 mbar (Rel: -0.50 bar).\n\n" +
+        "Fase 3: INSPECCIÓN (HOLDING - 30s)\n" +
+        "• El sistema mantendrá el vacío estrictamente durante 30 segundos.\n" +
+        "• Criterio de Rechazo: Emisión de un hilo continuo y constante de burbujas. (1 a 3 burbujas aisladas al inicio se consideran falsos positivos por la porosidad del corcho).\n\n" +
+        "Fase 4: ABORTO Y EMERGENCIA\n" +
+        "• Pulse la [BARRA ESPACIADORA] en cualquier momento para ejecutar un Paro General."
+    );
 }
 
-// Función para ver Protocolos de Seguridad
+// Función para ver Protocolos de Seguridad Industrial
 window.verProtocolos = function() {
-    logEvent("SEGURIDAD", "Revisando protocolos de estanqueidad", "text-warning");
-    alert("PROTOCOLOS DE SEGURIDAD INDUSTRIAL\n\n" +
-          "- No abrir cámaras con presión > 1050 mbar.\n" +
-          "- En caso de alarma roja, ejecutar PARO GENERAL.\n" +
-          "- Uso obligatorio de EPP en área de pistones.");
+    logEvent("SEGURIDAD", "Revisando protocolos de seguridad y normativas", "text-warning");
+    alert(
+        "⚠️ PROTOCOLOS DE SEGURIDAD INDUSTRIAL Y CALIDAD\n" +
+        "Evaluación de hermeticidad referenciada bajo estándares normativos (ej. ASTM D3078)\n\n" +
+        "REGLAS DE OPERACIÓN CRÍTICA:\n\n" +
+        "1. PREVENCIÓN DE DESCORCHE: El límite del sistema está restringido a 500 mbar para evitar la expulsión violenta del tapón debido a la presión interna del espacio de cabeza.\n\n" +
+        "2. INTERBLOQUEO MECÁNICO: Queda estrictamente prohibido intentar aperturar la cámara de prueba si la presión del manómetro no se encuentra ecualizada a la presión atmosférica (~1000 mbar).\n\n" +
+        "3. RESPUESTA A ALARMAS: Ante activación de baliza roja o falla crítica, presione el PARO DE EMERGENCIA. El sistema bloqueará las funciones y requerirá credenciales de Supervisor para el rearme.\n\n" +
+        "4. EQUIPO DE PROTECCIÓN (EPP): Por riesgo latente de implosión/explosión del envase de vidrio bajo presión negativa, es obligatorio el uso de gafas de seguridad (Norma ANSI Z87.1) frente al equipo."
+    );
 }
-
 // --- FUNCIÓN DE REARME EXCLUSIVA ---
 window.rearmarSistema = function() {
     if (userRole !== 'supervisor') {
