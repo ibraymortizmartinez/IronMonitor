@@ -48,6 +48,7 @@ El sistema requiere un endpoint llamado `logs`. El esquema de datos debe ser el 
 | Campo | Tipo | Descripción |
 | :--- | :--- | :--- |
 | `Nombre` | String | Identificador de la máquina |
+| `Producto` | String | Identificador Piesa a trabajar |
 | `Estado` | Boolean | Estado de marcha/paro |
 | `phase` | String | Fase actual (IDLE, FILLING, VACUUMING, etc.) |
 | `water` | Number | Nivel actual de agua en Litros |
@@ -84,6 +85,22 @@ El sistema requiere un endpoint llamado `logs`. El esquema de datos debe ser el 
 - **Aqua:** Vacío / Presión.
 - **Amarillo/Naranja:** Alertas / Fase de Retención.
 - **Rojo:** Paro de Emergencia / Falla de botella.
+
+---
+### 📊 Esquema de Datos (JSON)
+```json
+{
+  "id": "string",
+  "Nombre": "string",
+  "producto": "string",
+  "phase": "string (FILLING|VACUUMING|HOLDING|IDLE)",
+  "water": "number",
+  "pressure": "number",
+  "waterLimit": "number",
+  "pressureLimit": "number",
+  "contadorOk": "number",
+  "contadorFail": "number"
+}
 
 ---
 
