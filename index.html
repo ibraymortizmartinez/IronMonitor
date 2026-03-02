@@ -84,10 +84,21 @@
                     <h5 class="brand-tech m-0 text-warning"><i class="fas fa-plus-circle"></i> Agregar Nuevo Equipo</h5>
                 </div>
                 <form id="addMixerForm" class="row g-2">
-                    <div class="col-md-4"><input type="text" class="form-control form-control-dark" id="devName" placeholder="Nombre del Equipo" required></div>
-                    <div class="col-md-3"><input type="number" class="form-control form-control-dark" id="devWaterLimit" placeholder="Límite Agua (L)" required></div>
-                    <div class="col-md-3"><input type="number" class="form-control form-control-dark" id="devPressureLimit" placeholder="Límite Vacío (mbar)" required></div>
-                    <div class="col-md-2"><button type="submit" class="btn btn-warning w-100 fw-bold text-dark"><i class="fas fa-save"></i> GUARDAR</button></div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-dark" id="devName" placeholder="Nombre del Equipo" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-dark" id="devBottle" placeholder="Producto (Ej. Botella Vino)">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-dark" id="devWaterLimit" placeholder="Límite Agua (L)" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-dark" id="devPressureLimit" placeholder="Límite Vacío (mb)" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold text-dark"><i class="fas fa-save"></i> GUARDAR</button>
+                    </div>
                 </form>
             </div>
             <div class="table-responsive">
@@ -145,11 +156,19 @@
                         <input type="text" class="form-control form-control-dark" id="editName" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label text-secondary">Producto (Botella Asignada)</label>
+                        <input type="text" class="form-control form-control-dark" id="editBottle" placeholder="Ej. Botella Genérica">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label text-secondary">Límite de Agua (Litros)</label>
                         <input type="number" class="form-control form-control-dark" id="editWaterLimit" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-secondary">Límite de Vacío (mbar)</label>
+                        <input type="number" class="form-control form-control-dark" id="editPressureLimit" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">Botella</label>
                         <input type="number" class="form-control form-control-dark" id="editPressureLimit" required>
                     </div>
                 </div>
@@ -205,5 +224,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 </body>
 </html>

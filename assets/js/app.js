@@ -195,14 +195,19 @@ async function fetchDevices() {
                 const limPresion = parseFloat(d.pressureLimit) || parseFloat(d.Setpoint) || 10;
 
                 return {
-                    id: d.id, name: d.Nombre || `Máquina ${d.id}`, sensorValue: parseFloat(d.Valor_Actual) || 1000,
+                    id: d.id, name: d.Nombre || `Máquina ${d.id}`, 
+                    producto: d.Producto || 'Sin Asignar', // <-- NUEVO: Leemos el producto de la API
+                    // Mantenemos el conteo si ya existía, si no, empezamos en 0
+                    contadorOk: existing ? existing.contadorOk : 0,
+                    contadorFail: existing ? existing.contadorFail : 0,
+                     // ... resto de tus campos (water, pressure, etc)
+                    sensorValue: parseFloat(d.Valor_Actual) || 1000,
                     status: d.Estado !== undefined ? d.Estado : false, waterLimit: limAgua, pressureLimit: limPresion,
                     threshold: limPresion, water: d.water !== undefined ? parseFloat(d.water) : (existing ? existing.water : 0),
                     pressure: d.pressure !== undefined ? parseFloat(d.pressure) : (existing ? existing.pressure : 1000),
                     timer: d.timer !== undefined ? parseInt(d.timer) : (existing ? existing.timer : 0),
                     phase: d.phase || (existing ? existing.phase : 'IDLE'),
-                    alarma: d.Alarma !== undefined ? d.Alarma : (existing ? existing.alarma : false), 
-                    lastUpdate: now
+                    alarma: d.Alarma !== undefined ? d.Alarma : (existing ? existing.alarma : false), lastUpdate: now
                 };
             });
             useLocalMode = false; updateStatus('EN LÍNEA', 'success');
@@ -556,9 +561,15 @@ function renderControl(mixers) {
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 ${borderClass}" style="transition: all 0.3s ease; background-color: #1a1a2e;">
                 <div class="card-body p-4 d-flex flex-column position-relative">
-                    <h5 class="brand-tech mb-4 text-center" style="font-size: 1.1rem; color: #fff;">
-                        <i class="fas fa-cube ${iconAnim}" style="color: ${statusColor};"></i> ${m.name}
+                    <h5 class="brand-tech mb-2 text-center" style="font-size: 1.1rem; color: #fff;">
+                         <i class="fas fa-cube ${iconAnim}" style="color: ${statusColor};"></i> ${m.name}
                     </h5>
+                    
+                    <div class="text-center mb-4">
+                        <span class="badge bg-secondary text-info" style="font-size: 0.75rem; border: 1px solid var(--neon-aqua);">
+                            🍾 Producto: ${m.producto || 'Sin asignar'}
+                        </span>
+                    </div>
                     
                     <div class="row text-center mb-4">
                         <div class="col-4 px-1">
@@ -566,11 +577,14 @@ function renderControl(mixers) {
                             <div class="fw-bold" style="color:var(--neon-blue); font-family:'Orbitron'; font-size:1rem;">
                                 ${Number(m.water || 0).toFixed(0)}L
                             </div>
-                        </div>
+                        </div>  
                         <div class="col-4 px-1 border-start border-end border-secondary">
                             <small class="text-secondary fw-bold" style="font-size:0.65rem;">🌪️ PRESIÓN</small>
                             <div class="fw-bold" style="color:var(--neon-aqua); font-family:'Orbitron'; font-size:1rem;">
-                                ${Number(m.pressure || 0).toFixed(0)}
+                                ${Number(m.pressure || 0).toFixed(0)} mbar
+                            </div>
+                            <div class="text-muted fw-bold" style="font-size: 0.65rem; margin-top: -2px;">
+                                Rel: ${((Number(m.pressure || 1000) - 1000) / 1000).toFixed(2)} bar
                             </div>
                         </div>
                         <div class="col-4 px-1">
@@ -642,66 +656,116 @@ window.toggleRole = function() {
     triggerRender();
 };
 
+// Renombramos la función para que tenga sentido (asegúrate de cambiar el onclick de tu botón HTML a downloadExcel() si es necesario, o déjalo como downloadCSV para no mover el HTML)
 window.downloadCSV = function() {
     if (userRole !== 'supervisor') {
         showToast("Acceso denegado: Se requieren permisos de Supervisor", "danger");
         return;
     }   
     
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "--- REPORTE DE TURNO - IRONMONITOR ---\n";
-    csvContent += `Fecha del Reporte,${new Date().toLocaleString()}\n`;
-    csvContent += `Total Botellas Procesadas,${sessionStats.totalChecked}\n`;
-    csvContent += `Botellas Aprobadas (OK),${sessionStats.totalOk}\n`;
-    csvContent += `Botellas Rechazadas (FAIL),${sessionStats.totalFail}\n`;
-    
-    let tasaCalidad = sessionStats.totalChecked > 0 ? ((sessionStats.totalOk / sessionStats.totalChecked) * 100).toFixed(2) : 0;
-    csvContent += `Tasa de Calidad (%),${tasaCalidad}%\n`;
-    
-    if(window.sessionSnapshots && window.sessionSnapshots.length > 0) {
-        csvContent += "\n--- INCIDENCIAS DETECTADAS (SNAPSHOTS) ---\n";
-        csvContent += "Timestamp,Dispositivo,Presión (mb),Estado de Botellas\n";
-        window.sessionSnapshots.forEach(s => {
-            csvContent += `${s.timestamp},${s.machine},${s.pressure},"${s.bottles.join(' | ')}"\n`;
-        });
-    }
+    const wb = XLSX.utils.book_new();
+    const wsData = []; 
 
-    csvContent += "\n--- HISTORIAL DETALLADO DE SENSORES ---\n";
-    csvContent += "ID,Dispositivo,Hora,Fase,Agua (Litros),Presión (mbar)\n";
-    
-    for (let id in deviceHistory) {
-        let devName = devicesCache.find(d => d.id == id)?.name || `Equipo ${id}`;
-        deviceHistory[id].forEach(record => {
-            let faseES = record.phase;
-            if(faseES==='FILLING') faseES='Llenando'; 
-            if(faseES==='WATER_FULL') faseES='Agua Lista';
-            if(faseES==='VACUUMING') faseES='Extrayendo Aire'; 
-            if(faseES==='HOLDING') faseES='Retencion';
-            if(faseES==='DEPRESSURIZING') faseES='Despresurizando'; 
-            if(faseES==='OPEN') faseES='Abierto';
-            if(faseES==='IDLE') faseES='En Espera';
+    // --- ENCABEZADO ---
+    wsData.push(["--- REPORTE DE PRODUCCIÓN POR PRODUCTO ---"]);
+    wsData.push(["Fecha del Reporte", new Date().toLocaleString()]);
+    wsData.push([]); 
 
-            csvContent += `${id},${devName},${record.time},${faseES},${record.water},${record.pressure}\n`;
-        });
-    }
+    // --- SECCIÓN: RESUMEN DE CALIDAD POR MÁQUINA Y PRODUCTO ---
+    wsData.push(["DISPOSITIVO", "PRODUCTO ASIGNADO", "TOTAL OK", "TOTAL BAD", "EFICIENCIA (%)"]);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Reporte_Turno_IronMonitor_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link); 
-    link.click();
-    document.body.removeChild(link);
+    devicesCache.forEach(m => {
+        const id = m.id.toString();
+        const nombreProducto = m.producto || "Sin Producto";
+        
+        // 1. Intentar obtener el acumulado de los contadores del objeto
+        let okCount = m.contadorOk || 0;
+        let badCount = m.contadorFail || 0;
+
+        // 2. Lógica de respaldo: Si los contadores están en 0, intentamos sumar desde el historial guardado
+        if (okCount === 0 && badCount === 0 && deviceHistory[id]) {
+            // Recorremos el historial de esta máquina para sumar lo registrado
+            deviceHistory[id].forEach(record => {
+                // Si guardamos el resultado del ciclo en el registro
+                if (record.resultadoCiclo) {
+                    okCount += record.resultadoCiclo.ok;
+                    badCount += record.resultadoCiclo.fail;
+                }
+            });
+        }
+
+        let total = okCount + badCount;
+        let eficiencia = total > 0 ? ((okCount / total) * 100).toFixed(1) : "0.0";
+
+        // FILA SOLICITADA: Ejemplo "S. Pancho | Clas. Azul | 180 OK | 20 BAD"
+        wsData.push([
+            m.name, 
+            nombreProducto, 
+            `${okCount} OK`, 
+            `${badCount} BAD`, 
+            `${eficiencia}%`
+        ]);
+    });
+
+    wsData.push([]);
+    wsData.push(["--- RESUMEN TÉCNICO POR MÁQUINA (ÚLTIMO ESTADO) ---"]);
+    wsData.push(["ID", "Producto", "Hora", "Fase Actual", "Presión (mbar)", "Agua (L)"]);
+
+    // Mostrar una fila por cada máquina con su estado más reciente
+    devicesCache.forEach(m => {
+        const id = m.id.toString();
+        const history = deviceHistory[id] || [];
+        const lastRecord = history[0] || {}; // El primer elemento es el más reciente por el unshift()
+
+        wsData.push([
+            m.id,
+            m.producto || "N/A",
+            lastRecord.time || "N/A",
+            (lastRecord.phase || "IDLE").toUpperCase(),
+            m.pressure ? m.pressure.toFixed(1) : "0.0",
+            m.water ? m.water.toFixed(1) : "0.0"
+        ]);
+    });
+
+    // --- CONFIGURACIÓN DE COLUMNAS Y DESCARGA ---
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
     
-    logEvent("SISTEMA", "Reporte consolidado exportado exitosamente", "text-success");
+    // Ajuste de anchos: Dispositivo(20), Producto(25), OK(15), BAD(15), Eficiencia(15)
+    ws['!cols'] = [
+        { wch: 22 }, 
+        { wch: 28 }, 
+        { wch: 15 }, 
+        { wch: 15 }, 
+        { wch: 15 },
+        { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Resumen Calidad");
+    
+    let fileName = `Reporte_Produccion_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    logEvent("SISTEMA", "Excel de producción exportado con totales por producto", "text-success");
 };
 
+
 function renderAdmin(mixers) {
-    const tbody = document.getElementById('adminTableBody'); if(!tbody) return; tbody.innerHTML = '';
-    let filtered = mixers.filter(m => m.name.toLowerCase().includes(searchQuery)); filtered.sort((a,b) => parseInt(a.id) - parseInt(b.id));
+    const tbody = document.getElementById('adminTableBody'); 
+    if(!tbody) return; 
+    tbody.innerHTML = '';
+
+    let filtered = mixers.filter(m => m.name.toLowerCase().includes(searchQuery)); 
+    filtered.sort((a,b) => parseInt(a.id) - parseInt(b.id));
+
     filtered.forEach(m => {
-        const statusColor = m.status ? 'var(--neon-aqua)' : '#6c757d'; const statusText = m.status ? 'ACTIVO' : 'INACTIVO';
-        let phaseText = m.phase; let phaseColor = '#aaa';
+        const statusColor = m.status ? 'var(--neon-aqua)' : '#6c757d'; 
+        const statusText = m.status ? 'ACTIVO' : 'INACTIVO';
+        
+        // Obtenemos el producto de la data del mixer
+        const nombreProducto = m.producto || "Sin Producto";
+
+        let phaseText = m.phase; 
+        let phaseColor = '#aaa';
         if (m.phase === 'FILLING') { phaseText = 'LLENANDO'; phaseColor = 'var(--neon-blue)'; }
         else if (m.phase === 'WATER_FULL') { phaseText = 'AGUA AL LÍMITE'; phaseColor = 'var(--neon-yellow)'; }
         else if (m.phase === 'VACUUMING') { phaseText = 'EXTRAYENDO AIRE'; phaseColor = 'var(--neon-aqua)'; }
@@ -710,35 +774,92 @@ function renderAdmin(mixers) {
 
         tbody.innerHTML += `
         <tr style="vertical-align: middle; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <td class="fw-bold" style="color: var(--neon-aqua);">#${m.id}</td><td class="fw-bold text-light">${m.name}</td>
-            <td><span style="color: ${statusColor}; font-weight: bold;">● ${statusText}</span><br><small style="color: ${phaseColor}; font-size: 0.70rem; text-transform: uppercase;">[ ${phaseText} ]</small></td>
-            <td class="text-center" style="font-family: 'Orbitron'; font-size: 0.85rem; background-color: rgba(0,0,0,0.2); border-radius: 5px;"><span style="color: #0055ff;">💧 ${m.water.toFixed(0)}L</span> <span style="color:#444;">|</span> <span style="color: #00d4ff;">🌪️ ${m.pressure.toFixed(0)}mb</span></td>
-            <td class="text-center fw-bold text-contrast">Max: ${m.waterLimit}L <br> Max: ${m.pressureLimit}mb</td>
-            <td><div class="d-flex gap-2 justify-content-center"><button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info"><i class="fas fa-edit"></i></button><button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></button></div></td>
+            <td class="fw-bold" style="color: var(--neon-aqua);">#${m.id}</td>
+            <td class="fw-bold text-light">
+                ${m.name}<br>
+                <small style="color: #00d4ff; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fas fa-box"></i> ${nombreProducto}
+                </small>
+            </td>
+            <td>
+                <span style="color: ${statusColor}; font-weight: bold;">● ${statusText}</span><br>
+                <small style="color: ${phaseColor}; font-size: 0.70rem; text-transform: uppercase;">[ ${phaseText} ]</small>
+            </td>
+            <td class="text-center" style="font-family: 'Orbitron'; font-size: 0.85rem; background-color: rgba(0,0,0,0.2); border-radius: 5px;">
+                <span style="color: #0055ff;">💧 ${parseFloat(m.water).toFixed(0)}L</span> 
+                <span style="color:#444;">|</span> 
+                <span style="color: #00d4ff;">🌪️ ${parseFloat(m.pressure).toFixed(0)}mb</span>
+            </td>
+            <td class="text-center fw-bold text-contrast">
+                Max: ${m.waterLimit}L <br> 
+                Max: ${m.pressureLimit}mb
+            </td>
+            <td>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button onclick="openEditModal('${m.id}')" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteDev('${m.id}')" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </td>
         </tr>`;
     });
 }
 
 // CRUD
-document.getElementById('addMixerForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = { Nombre: document.getElementById('devName').value, waterLimit: document.getElementById('devWaterLimit').value, pressureLimit: document.getElementById('devPressureLimit').value, Valor_Actual: 1000, Estado: false, phase: 'IDLE', water: 0, pressure: 1000, timer: 0 };
+// --- CRUD DE EQUIPOS ---
+document.getElementById('addMixerForm')?.addEventListener('submit', async (e) => { 
+    e.preventDefault(); 
+    const data = { 
+        Nombre: document.getElementById('devName').value, 
+        Producto: document.getElementById('devBottle').value || 'Sin Asignar', // <-- NUEVO CAMPO
+        waterLimit: document.getElementById('devWaterLimit').value, 
+        pressureLimit: document.getElementById('devPressureLimit').value, 
+        Valor_Actual: 1000, Estado: false, phase: 'IDLE', water: 0, pressure: 1000, timer: 0 
+    }; 
     await fetch(DEVICES_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-    document.getElementById('addMixerForm').reset();
-    fetchDevices();
-    logEvent("ADMIN", `Nuevo equipo agregado: ${data.Nombre}`, "text-success");
-});
+    document.getElementById('addMixerForm').reset(); 
+    fetchDevices(); 
+    logEvent("ADMIN", `Nuevo equipo agregado: ${data.Nombre}`, "text-success"); 
+}); 
 
-window.deleteDev = async function(id) { if(confirm("¿Eliminar este equipo?")) { await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' });
-    fetchDevices(); logEvent("ADMIN", `Equipo ID:${id} eliminado`, "text-danger"); } }
-window.openEditModal = function(id) { const dev = devicesCache.find(m => m.id === id);
-    if (dev) { document.getElementById('editId').value = dev.id; document.getElementById('editName').value = dev.name; document.getElementById('editWaterLimit').value = dev.waterLimit; document.getElementById('editPressureLimit').value = dev.pressureLimit; new bootstrap.Modal(document.getElementById('editModal')).show();
-    } }
-document.getElementById('editForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); const id = document.getElementById('editId').value;
-    await fetch(`${DEVICES_URL}/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ Nombre: document.getElementById('editName').value, waterLimit: document.getElementById('editWaterLimit').value, pressureLimit: document.getElementById('editPressureLimit').value }) });
-    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); fetchDevices();
-    logEvent("ADMIN", `Equipo ID:${id} editado`, "text-info");
+window.deleteDev = async function(id) { 
+    if(confirm("¿Eliminar este equipo?")) { 
+        await fetch(`${DEVICES_URL}/${id}`, { method: 'DELETE' });
+        fetchDevices(); 
+        logEvent("ADMIN", `Equipo ID:${id} eliminado`, "text-danger"); 
+    } 
+} 
+
+window.openEditModal = function(id) { 
+    const dev = devicesCache.find(m => m.id === id);
+    if (dev) { 
+        document.getElementById('editId').value = dev.id; 
+        document.getElementById('editName').value = dev.name; 
+        document.getElementById('editBottle').value = dev.producto || ''; // <-- CARGAR PRODUCTO AL EDITAR
+        document.getElementById('editWaterLimit').value = dev.waterLimit; 
+        document.getElementById('editPressureLimit').value = dev.pressureLimit; 
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    } 
+} 
+
+document.getElementById('editForm')?.addEventListener('submit', async (e) => { 
+    e.preventDefault(); 
+    const id = document.getElementById('editId').value; 
+    await fetch(`${DEVICES_URL}/${id}`, { 
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ 
+            Nombre: document.getElementById('editName').value, 
+            Producto: document.getElementById('editBottle').value || 'Sin Asignar', // <-- GUARDAR PRODUCTO EDITADO
+            waterLimit: document.getElementById('editWaterLimit').value, 
+            pressureLimit: document.getElementById('editPressureLimit').value 
+        }) 
+    }); 
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); 
+    fetchDevices(); 
+    logEvent("ADMIN", `Equipo ID:${id} editado`, "text-info"); 
 });
 
 // --- GRÁFICAS Y TABLAS DE HISTORIAL ---
@@ -749,128 +870,130 @@ function updateCharts(mixers) {
     const currentTime = now.toLocaleTimeString('es-ES', { hour12: false });
 
     mixers.forEach(m => {
-        try {
-            const strId = m.id.toString();
+    try {
+        const strId = m.id.toString();
+        // Obtenemos el producto (puedes cambiar 'm.producto' por la propiedad exacta de tu API)
+        const nombreProducto = m.producto || "Sin Producto"; 
 
-            if (!deviceHistory[strId]) deviceHistory[strId] = [];
-            
-            if (deviceHistory[strId].length === 0 || deviceHistory[strId][0].time !== currentTime) {
-                deviceHistory[strId].unshift({ 
-                    time: currentTime, 
-                    phase: m.phase || 'IDLE', 
-                    water: parseFloat(m.water || 0).toFixed(1), 
-                    pressure: parseFloat(m.pressure || 0).toFixed(1) 
-                });
-            }
-            if (deviceHistory[strId].length > 10) deviceHistory[strId].pop();
-
-            let chartDiv = document.getElementById(`chart-wrapper-${strId}`);
-            if (!chartDiv) {
-                chartDiv = document.createElement('div');
-                chartDiv.className = 'col-lg-6 mb-4'; 
-                chartDiv.id = `chart-wrapper-${strId}`;
-                chartDiv.innerHTML = `
-                    <div class="card p-3 h-100 border-secondary" style="background-color: #1a1a2e; border-width: 2px; transition: all 0.3s ease;">
-                        <h5 class="brand-tech m-0 mb-3" style="color: var(--neon-aqua); text-align: center;">
-                            <i class="fas fa-chart-line"></i> TELEMETRÍA: ${m.name}
-                        </h5>
-                        <div style="height: 220px; position: relative;">
-                            <canvas id="canvas-${strId}"></canvas>
-                        </div>
-                        
-                        <div class="table-responsive mt-3 border border-secondary rounded" style="max-height: 200px; overflow-y: auto;">
-                            <table class="table table-sm table-dark text-center mb-0" style="font-size: 0.7rem;">
-                                <thead>
-                                    <tr style="color: var(--neon-blue); position: sticky; top: 0; background: #1a1a2e;">
-                                        <th>HORA</th><th>ESTADO</th><th>H2O</th><th>PRES.</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-table-${strId}"></tbody>
-                            </table>
-                        </div>
-                    </div>`;
-                container.appendChild(chartDiv);
-
-                const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
-                charts[strId] = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [
-                            { label: 'Presión', yAxisID: 'y', data: [], borderColor: '#00d4ff', tension: 0.2, fill: true, backgroundColor: 'rgba(0, 212, 255, 0.05)', pointRadius: 1 },
-                            { label: 'Agua', yAxisID: 'y1', data: [], borderColor: '#0055ff', tension: 0.2, fill: false, pointRadius: 1 },
-                            { label: 'Límite', yAxisID: 'y', data: [], borderColor: '#ff2a2a', borderDash: [5, 5], pointRadius: 0, borderWidth: 2 }
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false, animation: false,
-                        scales: {
-                            y: { position: 'left', suggestedMin: 0, suggestedMax: 1100, ticks: { color: '#00d4ff', font: { size: 8 } } },
-                            y1: { position: 'right', suggestedMin: 0, suggestedMax: 100, ticks: { color: '#0055ff', font: { size: 8 } }, grid: { drawOnChartArea: false } },
-                            x: { ticks: { display: false } } 
-                        },
-                        plugins: { legend: { display: true, labels: { color: '#fff', font: { size: 9 }, boxWidth: 8 } } }
-                    }
-                });
-            }
-
-            const chart = charts[strId];
-            if (chart) {
-                chart.data.labels.push(currentTime);
-                chart.data.datasets[0].data.push(m.pressure);
-                chart.data.datasets[1].data.push(m.water);
-                chart.data.datasets[2].data.push(m.pressureLimit || 250);
-
-                if (chart.data.labels.length > 15) { 
-                    chart.data.labels.shift();
-                    chart.data.datasets.forEach(ds => ds.data.shift());
-                }
-                chart.update('none');
-            }
-
-            const cardElement = chartDiv.querySelector('.card');
-            const fase = (m.phase || '').toUpperCase();
-            let borderCol = '#444'; 
-            let shadow = 'none';
-            if (fase.includes('DEPRES')) {
-                borderCol = '#ff2a2a';
-                shadow = '0 0 15px rgba(255, 42, 42, 0.5)';
-            } else if (fase.includes('FULL')) {
-                borderCol = '#0055ff';
-                shadow = '0 0 15px rgba(0, 85, 255, 0.4)';
-            } else if (fase.includes('FILL')) {
-                borderCol = '#ffff00';
-                shadow = '0 0 15px rgba(255, 255, 0, 0.4)';
-            } else if (fase.includes('OPEN') || fase.includes('VACUUM') || fase.includes('HOLD')) {
-                borderCol = '#00f2ff';
-                shadow = '0 0 10px rgba(0, 242, 255, 0.3)';
-            }
-
-            cardElement.style.borderColor = borderCol;
-            cardElement.style.boxShadow = shadow;
-            
-            const tbody = document.getElementById(`history-table-${strId}`);
-            if (tbody) {
-                tbody.innerHTML = deviceHistory[strId].map(r => `
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td>${r.time}</td>
-                        <td style="color: ${r.phase.includes('DEPRES') ? '#ff2a2a' : '#00f2ff'}; font-weight: bold;">${r.phase}</td>
-                        <td>${r.water}</td>
-                        <td>${r.pressure}</td>
-                    </tr>`).join('');
-            }
-
-        } catch (e) {
-            console.error("Error actualizando máquina:", m.id, e);
+        if (!deviceHistory[strId]) deviceHistory[strId] = [];
+        
+        if (deviceHistory[strId].length === 0 || deviceHistory[strId][0].time !== currentTime) {
+            deviceHistory[strId].unshift({ 
+                time: currentTime, 
+                producto: nombreProducto, // <--- Guardamos el producto en el historial
+                phase: m.phase || 'IDLE', 
+                water: parseFloat(m.water || 0).toFixed(1), 
+                pressure: parseFloat(m.pressure || 0).toFixed(1)
+            });
         }
-    });
+        if (deviceHistory[strId].length > 10) deviceHistory[strId].pop();
+
+        let chartDiv = document.getElementById(`chart-wrapper-${strId}`);
+        if (!chartDiv) {
+            chartDiv = document.createElement('div');
+            chartDiv.className = 'col-lg-6 mb-4'; 
+            chartDiv.id = `chart-wrapper-${strId}`;
+            chartDiv.innerHTML = `
+                <div class="card p-3 h-100 border-secondary" style="background-color: #1a1a2e; border-width: 2px; transition: all 0.3s ease;">
+                    <h5 class="brand-tech m-0 mb-3" style="color: var(--neon-aqua); text-align: center; line-height: 1.4;">
+                        <i class="fas fa-chart-line"></i> TELEMETRÍA: ${m.name}<br>
+                        <small style="color: #fff; font-size: 0.8rem; text-transform: uppercase;">Producto: ${nombreProducto}</small>
+                    </h5>
+                    <div style="height: 220px; position: relative;">
+                        <canvas id="canvas-${strId}"></canvas>
+                    </div>
+                    
+                    <div class="table-responsive mt-3 border border-secondary rounded" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table table-sm table-dark text-center mb-0" style="font-size: 0.7rem;">
+                            <thead>
+                                <tr style="color: var(--neon-blue); position: sticky; top: 0; background: #1a1a2e;">
+                                    <th>HORA</th>
+                                    <th>PRODUCTO</th> <th>ESTADO</th>
+                                    <th>H2O</th>
+                                    <th>PRES.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-${strId}"></tbody>
+                        </table>
+                    </div>
+                </div>`;
+            container.appendChild(chartDiv);
+
+            // ... (Resto de la inicialización de Chart.js se mantiene igual)
+            const ctx = document.getElementById(`canvas-${strId}`).getContext('2d');
+            charts[strId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Presión', yAxisID: 'y', data: [], borderColor: '#00d4ff', tension: 0.2, fill: true, backgroundColor: 'rgba(0, 212, 255, 0.05)', pointRadius: 1 },
+                        { label: 'Agua', yAxisID: 'y1', data: [], borderColor: '#0055ff', tension: 0.2, fill: false, pointRadius: 1 },
+                        { label: 'Límite', yAxisID: 'y', data: [], borderColor: '#ff2a2a', borderDash: [5, 5], pointRadius: 0, borderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: false,
+                    scales: {
+                        y: { position: 'left', suggestedMin: 0, suggestedMax: 1100, ticks: { color: '#00d4ff', font: { size: 8 } } },
+                        y1: { position: 'right', suggestedMin: 0, suggestedMax: 100, ticks: { color: '#0055ff', font: { size: 8 } }, grid: { drawOnChartArea: false } },
+                        x: { ticks: { display: false } } 
+                    },
+                    plugins: { legend: { display: true, labels: { color: '#fff', font: { size: 9 }, boxWidth: 8 } } }
+                }
+            });
+        }
+
+        // Actualización de datos de la gráfica
+        const chart = charts[strId];
+        if (chart) {
+            chart.data.labels.push(currentTime);
+            chart.data.datasets[0].data.push(m.pressure);
+            chart.data.datasets[1].data.push(m.water);
+            chart.data.datasets[2].data.push(m.pressureLimit || 250);
+
+            if (chart.data.labels.length > 15) { 
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(ds => ds.data.shift());
+            }
+            chart.update('none');
+        }
+
+        // --- LÓGICA DE COLORES DE LA CARD (Se mantiene igual) ---
+        const cardElement = chartDiv.querySelector('.card');
+        const fase = (m.phase || '').toUpperCase();
+        let borderCol = '#444'; 
+        let shadow = 'none';
+        if (fase.includes('DEPRES')) { borderCol = '#ff2a2a'; shadow = '0 0 15px rgba(255, 42, 42, 0.5)'; }
+        else if (fase.includes('FULL')) { borderCol = '#0055ff'; shadow = '0 0 15px rgba(0, 85, 255, 0.4)'; }
+        else if (fase.includes('FILL')) { borderCol = '#ffff00'; shadow = '0 0 15px rgba(255, 255, 0, 0.4)'; }
+        else if (fase.includes('OPEN') || fase.includes('VACUUM') || fase.includes('HOLD')) { borderCol = '#00f2ff'; shadow = '0 0 10px rgba(0, 242, 255, 0.3)'; }
+
+        cardElement.style.borderColor = borderCol;
+        cardElement.style.boxShadow = shadow;
+        
+        // --- ACTUALIZACIÓN DE LA TABLA CON COLUMNA PRODUCTO ---
+        const tbody = document.getElementById(`history-table-${strId}`);
+        if (tbody) {
+            tbody.innerHTML = deviceHistory[strId].map(r => `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <td>${r.time}</td>
+                    <td style="color: #aaa;">${r.producto}</td> <td style="color: ${r.phase.includes('DEPRES') ? '#ff2a2a' : '#00f2ff'}; font-weight: bold;">${r.phase}</td>
+                    <td>${r.water}</td>
+                    <td>${r.pressure}</td>
+                </tr>`).join('');
+        }
+
+    } catch (e) {
+        console.error("Error actualizando máquina:", m.id, e);
+    }
+});
 }
 
 // Función para mostrar el Manual Estandarizado
 window.verManual = function() {
     logEvent("SISTEMA", "Accediendo a Manual de Operación (POE)", "text-info");
     alert(
-        "📋 MANUAL DE OPERACIÓN ESTANDARIZADO - IRONMONITOR v3.0\n" +
+        "📋 MANUAL DE OPERACIÓN ESTANDARIZADO - IRONMONITOR\n" +
         "PROCEDIMIENTO DE PRUEBA DE ESTANQUEIDAD (Cierres Elásticos / Corchos)\n\n" +
         "Fase 1: PREPARACIÓN Y CARGA\n" +
         "• Verifique que el nivel de fluido cubra la muestra al menos 2.5 cm por encima del tapón.\n" +
@@ -932,3 +1055,31 @@ window.marcarFallaEnGrafica = function(deviceId, valorPresion) {
         chart.update(); 
     }
 };
+
+window.registrarResultadoCiclo = function(deviceId) {
+    let fallasEnEsteCiclo = 0;
+    
+    // 1. Contamos las fallas de las 12 boquillas
+    for(let i = 0; i < 12; i++) {
+        if(localStorage.getItem(`fail_dev_${deviceId}_bot_${i}`) === 'true') {
+            fallasEnEsteCiclo++;
+        }
+    }
+
+    // 2. Buscamos el dispositivo en el cache
+    let dev = devicesCache.find(d => d.id == deviceId);
+    if (dev) {
+        let okEnEsteCiclo = 12 - fallasEnEsteCiclo;
+        
+        // SUMAMOS AL CONTADOR INDIVIDUAL DEL DISPOSITIVO
+        dev.contadorOk += okEnEsteCiclo;
+        dev.contadorFail += fallasEnEsteCiclo;
+
+        // También actualizamos las estadísticas globales para que no se rompa el dashboard
+        sessionStats.totalChecked += 12;
+        sessionStats.totalOk += okEnEsteCiclo;
+        sessionStats.totalFail += fallasEnEsteCiclo;
+        
+        logEvent("CALIDAD", `Ciclo Finalizado en ${dev.name}: ${okEnEsteCiclo} OK, ${fallasEnEsteCiclo} BAD`, "text-info");
+    }
+}
